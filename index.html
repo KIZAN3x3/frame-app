@@ -13,6 +13,12 @@ header{padding:20px 0 14px;border-bottom:1px solid var(--border);margin-bottom:1
 header h1{font-size:17px;font-weight:700;}
 header h1 em{font-style:normal;color:var(--accent);}
 header p{font-size:11px;color:var(--text2);margin-top:2px;}
+
+/* タブ */
+.tabs{display:flex;gap:0;margin-bottom:14px;border:1px solid var(--border);border-radius:var(--rs);overflow:hidden;}
+.tab{flex:1;padding:11px;text-align:center;font-size:13px;font-weight:600;cursor:pointer;color:var(--text2);background:var(--surface2);border:none;transition:all .15s;}
+.tab.on{background:var(--accent);color:#fff;}
+
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:10px;}
 .ch{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px;}
 .num{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
@@ -30,8 +36,8 @@ input[type=file]{display:none;}
 .go{width:100%;padding:15px;border:none;border-radius:var(--rs);background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;}
 .go:disabled{opacity:.3;cursor:not-allowed;}
 .go:active{opacity:.85;}
-/* 調整・結果は最初から表示、canvasで隠す */
-#adjSection{margin-top:10px;}
+
+/* 写真調整 */
 #adjCanvas{display:block;width:100%;border-radius:var(--rs);touch-action:none;cursor:grab;}
 #adjCanvas:active{cursor:grabbing;}
 .hint{font-size:11px;color:var(--text2);text-align:center;margin-top:8px;line-height:1.7;}
@@ -39,99 +45,214 @@ input[type=file]{display:none;}
 .abtn{flex:1;padding:12px;border-radius:var(--rs);border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:13px;cursor:pointer;text-align:center;}
 .abtn.pri{border-color:var(--accent);color:var(--accent);background:rgba(232,119,46,.08);}
 .abtn:active{opacity:.7;}
-#resSection{margin-top:10px;}
 #resCanvas{display:block;width:100%;border-radius:var(--rs);}
+
+/* 動画 */
+.video-preview-wrap{position:relative;width:100%;border-radius:var(--rs);overflow:hidden;background:#000;}
+#videoEl{display:block;width:100%;}
+#frameOverlayCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+.prog-wrap{margin-top:8px;}
+.prog-label{display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:4px;}
+progress{width:100%;height:6px;border-radius:3px;border:none;background:var(--surface2);}
+progress::-webkit-progress-bar{background:var(--surface2);border-radius:3px;}
+progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
+.rec-info{font-size:11px;color:var(--text2);text-align:center;margin-top:6px;line-height:1.6;}
+
 .dlbtn{width:100%;margin-top:10px;padding:14px;border:1.5px solid var(--accent);border-radius:var(--rs);background:transparent;color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;text-align:center;display:block;}
 .dlbtn:active{background:rgba(232,119,46,.1);}
 .rtbtn{width:100%;margin-top:8px;padding:11px;border:1px solid var(--border);border-radius:var(--rs);background:var(--surface2);color:var(--text2);font-size:13px;cursor:pointer;text-align:center;display:block;}
 .hidden{display:none!important;}
+.stbox{margin-top:9px;padding:9px 12px;border-radius:var(--rs);background:var(--surface2);font-size:12px;display:none;align-items:center;gap:8px;}
+.stbox.show{display:flex;}
+.stbox.loading{color:var(--accent2);}.stbox.done{color:var(--green);}.stbox.err{color:var(--red);}
+.spin{width:13px;height:13px;border-radius:50%;flex-shrink:0;border:2px solid rgba(245,166,35,.3);border-top-color:var(--accent2);animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
 <div class="app">
   <header>
     <h1>フレーム<em>合成</em>アプリ</h1>
-    <p>写真をアップロード → 位置調整 → SNS用ダウンロード</p>
+    <p>写真・動画にフレームを合成してSNS用にダウンロード</p>
   </header>
 
-  <!-- STEP1 -->
-  <div class="card">
-    <div class="ch"><div class="num" id="n1">1</div><span class="ct">人物写真</span></div>
-    <div class="cb">
-      <div class="ua" id="pArea" onclick="document.getElementById('pIn').click()">
-        <span style="font-size:28px">📷</span>
-        <span style="font-size:13px;color:var(--text2)">タップして写真を選択</span>
-        <span style="font-size:11px;color:var(--text2)">JPG / PNG / HEIC</span>
-      </div>
-      <input type="file" id="pIn" accept="image/*">
-    </div>
+  <!-- タブ -->
+  <div class="tabs">
+    <button class="tab on" id="tabPhoto" onclick="switchTab('photo')">📷 写真モード</button>
+    <button class="tab" id="tabVideo" onclick="switchTab('video')">🎬 動画モード</button>
   </div>
 
-  <!-- STEP2 -->
-  <div class="card">
-    <div class="ch"><div class="num" id="n2">2</div><span class="ct">枠画像</span></div>
-    <div class="cb">
-      <div class="ua" id="fArea" onclick="document.getElementById('fIn').click()">
-        <span style="font-size:28px">🖼</span>
-        <span style="font-size:13px;color:var(--text2)">タップして枠を選択（PNG推奨）</span>
-        <span style="font-size:11px;color:var(--text2)">透過PNG対応</span>
-      </div>
-      <input type="file" id="fIn" accept="image/*">
-    </div>
-  </div>
-
-  <!-- STEP3 -->
-  <div class="card">
-    <div class="ch"><div class="num" id="n3">3</div><span class="ct">設定</span></div>
-    <div class="cb">
-      <p style="font-size:11px;color:var(--text2);margin-bottom:6px;">出力サイズ</p>
-      <div class="opts" id="sOpts">
-        <div class="opt on" data-v="1080x1080">正方形<br>1080×1080</div>
-        <div class="opt" data-v="1080x1920">縦型<br>1080×1920</div>
-        <div class="opt" data-v="1200x630">横型<br>1200×630</div>
-        <div class="opt" data-v="auto">枠に合わせる</div>
-      </div>
-      <p style="font-size:11px;color:var(--text2);margin-bottom:6px;">人物レイヤー</p>
-      <div class="opts" id="lOpts">
-        <div class="opt on" data-v="under">枠が前面</div>
-        <div class="opt" data-v="over">人物が前面</div>
-      </div>
-      <button class="go" id="goBtn" disabled>▶ 調整画面へ進む</button>
-    </div>
-  </div>
-
-  <!-- STEP4 調整 -->
-  <div id="adjSection" class="hidden">
+  <!-- ========== 写真モード ========== -->
+  <div id="photoMode">
     <div class="card">
-      <div class="ch"><div class="num" style="background:var(--accent2)">4</div><span class="ct">位置・サイズを調整</span></div>
+      <div class="ch"><div class="num" id="n1">1</div><span class="ct">人物写真</span></div>
       <div class="cb">
-        <canvas id="adjCanvas"></canvas>
-        <p class="hint">
-          📱 1本指ドラッグで移動 / 2本指ピンチで拡縮<br>
-          💻 ドラッグで移動 / スクロールでズーム
-        </p>
-        <div class="aacts">
-          <button class="abtn" id="resetBtn">↩ リセット</button>
-          <button class="abtn pri" id="applyBtn">✓ これで合成する</button>
+        <div class="ua" id="pArea" onclick="document.getElementById('pIn').click()">
+          <span style="font-size:28px">📷</span>
+          <span style="font-size:13px;color:var(--text2)">タップして写真を選択</span>
+          <span style="font-size:11px;color:var(--text2)">JPG / PNG / HEIC</span>
+        </div>
+        <input type="file" id="pIn" accept="image/*">
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="num" id="n2">2</div><span class="ct">枠画像</span></div>
+      <div class="cb">
+        <div class="ua" id="fArea" onclick="document.getElementById('fIn').click()">
+          <span style="font-size:28px">🖼</span>
+          <span style="font-size:13px;color:var(--text2)">タップして枠を選択（PNG推奨）</span>
+          <span style="font-size:11px;color:var(--text2)">透過PNG対応</span>
+        </div>
+        <input type="file" id="fIn" accept="image/*">
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="num" id="n3">3</div><span class="ct">設定</span></div>
+      <div class="cb">
+        <p style="font-size:11px;color:var(--text2);margin-bottom:6px;">出力サイズ</p>
+        <div class="opts" id="sOpts">
+          <div class="opt on" data-v="1080x1080">正方形<br>1080×1080</div>
+          <div class="opt" data-v="1080x1920">縦型<br>1080×1920</div>
+          <div class="opt" data-v="1200x630">横型<br>1200×630</div>
+          <div class="opt" data-v="auto">枠に合わせる</div>
+        </div>
+        <p style="font-size:11px;color:var(--text2);margin-bottom:6px;">人物レイヤー</p>
+        <div class="opts" id="lOpts">
+          <div class="opt on" data-v="under">枠が前面</div>
+          <div class="opt" data-v="over">人物が前面</div>
+        </div>
+        <button class="go" id="goBtn" disabled>▶ 調整画面へ進む</button>
+      </div>
+    </div>
+    <div id="adjSection" class="hidden">
+      <div class="card">
+        <div class="ch"><div class="num" style="background:var(--accent2)">4</div><span class="ct">位置・サイズを調整</span></div>
+        <div class="cb">
+          <canvas id="adjCanvas"></canvas>
+          <p class="hint">📱 1本指ドラッグで移動 / 2本指ピンチで拡縮<br>💻 ドラッグで移動 / スクロールでズーム</p>
+          <div class="aacts">
+            <button class="abtn" id="resetBtn">↩ リセット</button>
+            <button class="abtn pri" id="applyBtn">✓ これで合成する</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="resSection" class="hidden">
+      <div class="card">
+        <div class="ch"><div class="num ok">✓</div><span class="ct">合成完了！</span></div>
+        <div class="cb">
+          <canvas id="resCanvas"></canvas>
+          <button class="dlbtn" id="dlBtn">⬇ 画像をダウンロード</button>
+          <button class="rtbtn" id="rtBtn">↩ 調整に戻る</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- STEP5 結果 -->
-  <div id="resSection" class="hidden">
+  <!-- ========== 動画モード ========== -->
+  <div id="videoMode" class="hidden">
     <div class="card">
-      <div class="ch"><div class="num ok">✓</div><span class="ct">合成完了！</span></div>
+      <div class="ch"><div class="num" id="vn1">1</div><span class="ct">動画をアップロード</span></div>
       <div class="cb">
-        <canvas id="resCanvas"></canvas>
-        <button class="dlbtn" id="dlBtn">⬇ 画像をダウンロード / 保存</button>
-        <button class="rtbtn" id="rtBtn">↩ 調整に戻る</button>
+        <div class="ua" id="vArea" onclick="document.getElementById('vIn').click()">
+          <span style="font-size:28px">🎬</span>
+          <span style="font-size:13px;color:var(--text2)">タップして動画を選択</span>
+          <span style="font-size:11px;color:var(--text2)">MP4 / MOV 推奨（〜200MB）</span>
+        </div>
+        <input type="file" id="vIn" accept="video/*">
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="num" id="vn2">2</div><span class="ct">枠画像</span></div>
+      <div class="cb">
+        <div class="ua" id="vfArea" onclick="document.getElementById('vfIn').click()">
+          <span style="font-size:28px">🖼</span>
+          <span style="font-size:13px;color:var(--text2)">タップして枠を選択（PNG推奨）</span>
+          <span style="font-size:11px;color:var(--text2)">透過PNG対応</span>
+        </div>
+        <input type="file" id="vfIn" accept="image/*">
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="num" id="vn3">3</div><span class="ct">設定</span></div>
+      <div class="cb">
+        <p style="font-size:11px;color:var(--text2);margin-bottom:6px;">人物レイヤー</p>
+        <div class="opts" id="vlOpts">
+          <div class="opt on" data-v="under">枠が前面</div>
+          <div class="opt" data-v="over">人物が前面</div>
+        </div>
+        <button class="go" id="vGoBtn" disabled>▶ プレビュー・合成開始</button>
+        <div class="stbox" id="vstbox"></div>
+      </div>
+    </div>
+
+    <div id="vAdjSection" class="hidden">
+      <div class="card">
+        <div class="ch"><div class="num" style="background:var(--accent2)">4</div><span class="ct">プレビュー確認・録画</span></div>
+        <div class="cb">
+          <div class="video-preview-wrap" id="vPreviewWrap">
+            <video id="videoEl" playsinline muted loop></video>
+            <canvas id="frameOverlayCanvas"></canvas>
+          </div>
+          <p class="hint">フレームが重なったプレビューを確認してください</p>
+          <div class="aacts" style="margin-top:10px;">
+            <button class="abtn" id="vPlayBtn">▶ 再生</button>
+            <button class="abtn pri" id="vRecBtn">⏺ 録画して合成</button>
+          </div>
+          <div class="stbox" id="vRecStbox"></div>
+          <div class="prog-wrap hidden" id="progWrap">
+            <div class="prog-label"><span>合成中...</span><span id="progPct">0%</span></div>
+            <progress id="progBar" value="0" max="100"></progress>
+          </div>
+          <p class="rec-info">※ 録画は動画を1回再生する時間がかかります</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="vResSection" class="hidden">
+      <div class="card">
+        <div class="ch"><div class="num ok">✓</div><span class="ct">動画合成完了！</span></div>
+        <div class="cb">
+          <button class="dlbtn" id="vDlBtn">⬇ 動画をダウンロード（MP4/WebM）</button>
+          <button class="rtbtn" id="vRtBtn">↩ やり直す</button>
+        </div>
       </div>
     </div>
   </div>
 
 </div>
 <script>
+// ===== タブ切り替え =====
+function switchTab(mode){
+  document.getElementById('photoMode').classList.toggle('hidden', mode!=='photo');
+  document.getElementById('videoMode').classList.toggle('hidden', mode!=='video');
+  document.getElementById('tabPhoto').classList.toggle('on', mode==='photo');
+  document.getElementById('tabVideo').classList.toggle('on', mode==='video');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ===== 共通ユーティリティ =====
+function loadImg(file){
+  return new Promise(function(res){
+    var r=new FileReader();
+    r.onload=function(e){var i=new Image();i.onload=function(){res(i);};i.src=e.target.result;};
+    r.readAsDataURL(file);
+  });
+}
+function markZone(aId,nId,preview){
+  var a=document.getElementById(aId);
+  a.classList.add('loaded');a.innerHTML='';
+  if(preview){var el=document.createElement('img');el.src=preview;el.style.maxHeight='90px';a.appendChild(el);}
+  var t=document.createElement('span');t.style.cssText='font-size:11px;color:var(--green);margin-top:4px;';
+  t.textContent='✓ 読み込み完了（タップで変更）';a.appendChild(t);
+  if(nId)document.getElementById(nId).classList.add('ok');
+}
+function setSt(id,msg,type){
+  var el=document.getElementById(id);el.className='stbox show '+(type||'');
+  el.innerHTML=type==='loading'?'<div class="spin"></div><span>'+msg+'</span>':'<span>'+(type==='done'?'✓':type==='err'?'✗':'')+'</span><span>'+msg+'</span>';
+}
+
+// ===== 写真モード =====
 var pImg=null,fImg=null,selSize='1080x1080',selLayer='under';
 var outW=1080,outH=1080;
 var adj={x:0,y:0,scale:1,bx:0,by:0,bs:1};
@@ -147,182 +268,202 @@ var gestureSetup=false;
     if(id==='sOpts')selSize=b.dataset.v;else selLayer=b.dataset.v;
   });
 });
-
-function loadImg(file){
-  return new Promise(function(res){
-    var r=new FileReader();
-    r.onload=function(e){
-      var i=new Image();
-      i.onload=function(){res(i);};
-      i.src=e.target.result;
-    };
-    r.readAsDataURL(file);
-  });
-}
-
-function markZone(aId,nId,img){
-  var a=document.getElementById(aId);
-  a.classList.add('loaded');
-  a.innerHTML='';
-  var el=document.createElement('img');
-  el.src=img.src;el.style.maxHeight='90px';
-  a.appendChild(el);
-  var t=document.createElement('span');
-  t.style.cssText='font-size:11px;color:var(--green);margin-top:4px;';
-  t.textContent='✓ 読み込み完了（タップで変更）';
-  a.appendChild(t);
-  document.getElementById(nId).classList.add('ok');
-  checkReady();
-}
-
 document.getElementById('pIn').onchange=async function(e){
   var f=e.target.files[0];if(!f)return;
-  pImg=await loadImg(f);
-  markZone('pArea','n1',pImg);
+  pImg=await loadImg(f);markZone('pArea','n1',pImg.src);checkPhotoReady();
 };
 document.getElementById('fIn').onchange=async function(e){
   var f=e.target.files[0];if(!f)return;
-  fImg=await loadImg(f);
-  markZone('fArea','n2',fImg);
+  fImg=await loadImg(f);markZone('fArea','n2',fImg.src);checkPhotoReady();
 };
-
-function checkReady(){
-  document.getElementById('goBtn').disabled=!(pImg&&fImg);
-}
-
-function draw(){
+function checkPhotoReady(){document.getElementById('goBtn').disabled=!(pImg&&fImg);}
+function drawPhoto(){
   actx.clearRect(0,0,ac.width,ac.height);
-  var dw=pImg.naturalWidth*adj.scale;
-  var dh=pImg.naturalHeight*adj.scale;
-  if(selLayer==='over'){
-    actx.drawImage(fImg,0,0,ac.width,ac.height);
-    actx.drawImage(pImg,adj.x,adj.y,dw,dh);
-  }else{
-    actx.drawImage(pImg,adj.x,adj.y,dw,dh);
-    actx.drawImage(fImg,0,0,ac.width,ac.height);
-  }
+  var dw=pImg.naturalWidth*adj.scale,dh=pImg.naturalHeight*adj.scale;
+  if(selLayer==='over'){actx.drawImage(fImg,0,0,ac.width,ac.height);actx.drawImage(pImg,adj.x,adj.y,dw,dh);}
+  else{actx.drawImage(pImg,adj.x,adj.y,dw,dh);actx.drawImage(fImg,0,0,ac.width,ac.height);}
 }
-
 document.getElementById('goBtn').onclick=function(){
-  // サイズ決定
   if(selSize==='auto'){outW=fImg.naturalWidth;outH=fImg.naturalHeight;}
   else{var p=selSize.split('x');outW=parseInt(p[0]);outH=parseInt(p[1]);}
-
-  // canvasサイズ設定
-  ac.width=outW;
-  ac.height=outH;
-
-  // 初期配置：人物を中央にフィット
+  ac.width=outW;ac.height=outH;
   var s=Math.max(outW/pImg.naturalWidth,outH/pImg.naturalHeight);
-  var ix=(outW-pImg.naturalWidth*s)/2;
-  var iy=(outH-pImg.naturalHeight*s)/2;
+  var ix=(outW-pImg.naturalWidth*s)/2,iy=(outH-pImg.naturalHeight*s)/2;
   adj={x:ix,y:iy,scale:s,bx:ix,by:iy,bs:s};
-
-  // 描画
-  draw();
-
-  // 調整セクション表示
+  drawPhoto();
   var adjSec=document.getElementById('adjSection');
   adjSec.classList.remove('hidden');
   document.getElementById('resSection').classList.add('hidden');
-
-  // ジェスチャー初期化（1回だけ）
-  if(!gestureSetup){setupGesture();gestureSetup=true;}
-
-  // スクロール
+  if(!gestureSetup){setupPhotoGesture();gestureSetup=true;}
   window.scrollTo({top:adjSec.offsetTop-10,behavior:'smooth'});
 };
-
-function setupGesture(){
+function setupPhotoGesture(){
   var st=null,sa=null,md=false,ms=null,mas=null;
-
-  ac.addEventListener('touchstart',function(e){
-    e.preventDefault();
-    st=Array.from(e.touches).map(function(t){return{x:t.clientX,y:t.clientY};});
-    sa={x:adj.x,y:adj.y,scale:adj.scale};
-  },{passive:false});
-
+  ac.addEventListener('touchstart',function(e){e.preventDefault();st=Array.from(e.touches).map(function(t){return{x:t.clientX,y:t.clientY};});sa={x:adj.x,y:adj.y,scale:adj.scale};},{passive:false});
   ac.addEventListener('touchmove',function(e){
-    e.preventDefault();
-    if(!st||!sa)return;
+    e.preventDefault();if(!st||!sa)return;
     var ts=Array.from(e.touches).map(function(t){return{x:t.clientX,y:t.clientY};});
-    var cr=ac.getBoundingClientRect();
-    var ratio=outW/cr.width;
-    if(ts.length===1){
-      adj.x=sa.x+(ts[0].x-st[0].x)*ratio;
-      adj.y=sa.y+(ts[0].y-st[0].y)*ratio;
-    }else if(ts.length>=2&&st.length>=2){
-      var d0=Math.hypot(st[1].x-st[0].x,st[1].y-st[0].y);
-      var d1=Math.hypot(ts[1].x-ts[0].x,ts[1].y-ts[0].y);
-      var r=d1/d0;
-      var cx=((st[0].x+st[1].x)/2-cr.left)*ratio;
-      var cy=((st[0].y+st[1].y)/2-cr.top)*ratio;
-      adj.scale=sa.scale*r;
-      adj.x=cx-(cx-sa.x)*r;
-      adj.y=cy-(cy-sa.y)*r;
+    var cr=ac.getBoundingClientRect(),ratio=outW/cr.width;
+    if(ts.length===1){adj.x=sa.x+(ts[0].x-st[0].x)*ratio;adj.y=sa.y+(ts[0].y-st[0].y)*ratio;}
+    else if(ts.length>=2&&st.length>=2){
+      var d0=Math.hypot(st[1].x-st[0].x,st[1].y-st[0].y),d1=Math.hypot(ts[1].x-ts[0].x,ts[1].y-ts[0].y),r=d1/d0;
+      var cx=((st[0].x+st[1].x)/2-cr.left)*ratio,cy=((st[0].y+st[1].y)/2-cr.top)*ratio;
+      adj.scale=sa.scale*r;adj.x=cx-(cx-sa.x)*r;adj.y=cy-(cy-sa.y)*r;
     }
-    draw();
+    drawPhoto();
   },{passive:false});
-
   ac.addEventListener('touchend',function(){st=null;sa=null;});
-
-  ac.addEventListener('mousedown',function(e){
-    e.preventDefault();
-    md=true;
-    var cr=ac.getBoundingClientRect();
-    var ratio=outW/cr.width;
-    ms={x:e.clientX,y:e.clientY};
-    mas={x:adj.x,y:adj.y};
-  });
-  window.addEventListener('mousemove',function(e){
-    if(!md)return;
-    var cr=ac.getBoundingClientRect();
-    var ratio=outW/cr.width;
-    adj.x=mas.x+(e.clientX-ms.x)*ratio;
-    adj.y=mas.y+(e.clientY-ms.y)*ratio;
-    draw();
-  });
+  ac.addEventListener('mousedown',function(e){e.preventDefault();md=true;var cr=ac.getBoundingClientRect(),ratio=outW/cr.width;ms={x:e.clientX,y:e.clientY};mas={x:adj.x,y:adj.y};});
+  window.addEventListener('mousemove',function(e){if(!md)return;var cr=ac.getBoundingClientRect(),ratio=outW/cr.width;adj.x=mas.x+(e.clientX-ms.x)*ratio;adj.y=mas.y+(e.clientY-ms.y)*ratio;drawPhoto();});
   window.addEventListener('mouseup',function(){md=false;});
-
-  ac.addEventListener('wheel',function(e){
-    e.preventDefault();
-    var d=e.deltaY>0?0.93:1.07;
-    var cr=ac.getBoundingClientRect();
-    var ratio=outW/cr.width;
-    var lx=(e.clientX-cr.left)*ratio;
-    var ly=(e.clientY-cr.top)*ratio;
-    adj.x=lx-(lx-adj.x)*d;
-    adj.y=ly-(ly-adj.y)*d;
-    adj.scale*=d;
-    draw();
-  },{passive:false});
+  ac.addEventListener('wheel',function(e){e.preventDefault();var d=e.deltaY>0?0.93:1.07,cr=ac.getBoundingClientRect(),ratio=outW/cr.width,lx=(e.clientX-cr.left)*ratio,ly=(e.clientY-cr.top)*ratio;adj.x=lx-(lx-adj.x)*d;adj.y=ly-(ly-adj.y)*d;adj.scale*=d;drawPhoto();},{passive:false});
 }
-
-document.getElementById('resetBtn').onclick=function(){
-  adj.x=adj.bx;adj.y=adj.by;adj.scale=adj.bs;draw();
-};
-
+document.getElementById('resetBtn').onclick=function(){adj.x=adj.bx;adj.y=adj.by;adj.scale=adj.bs;drawPhoto();};
 document.getElementById('applyBtn').onclick=function(){
-  var rc=document.getElementById('resCanvas');
-  rc.width=outW;rc.height=outH;
-  rc.getContext('2d').drawImage(ac,0,0);
-  var resSec=document.getElementById('resSection');
-  resSec.classList.remove('hidden');
+  var rc=document.getElementById('resCanvas');rc.width=outW;rc.height=outH;rc.getContext('2d').drawImage(ac,0,0);
+  var resSec=document.getElementById('resSection');resSec.classList.remove('hidden');
   window.scrollTo({top:resSec.offsetTop-10,behavior:'smooth'});
 };
+document.getElementById('rtBtn').onclick=function(){document.getElementById('resSection').classList.add('hidden');window.scrollTo({top:document.getElementById('adjSection').offsetTop-10,behavior:'smooth'});};
+document.getElementById('dlBtn').onclick=function(){var rc=document.getElementById('resCanvas');var a=document.createElement('a');a.download='frame_'+Date.now()+'.png';a.href=rc.toDataURL('image/png');a.click();};
 
-document.getElementById('rtBtn').onclick=function(){
-  document.getElementById('resSection').classList.add('hidden');
-  var adjSec=document.getElementById('adjSection');
-  window.scrollTo({top:adjSec.offsetTop-10,behavior:'smooth'});
+// ===== 動画モード =====
+var vFile=null,vfImg=null,vLayer='under';
+var videoEl=document.getElementById('videoEl');
+var foc=document.getElementById('frameOverlayCanvas');
+var focCtx=foc.getContext('2d');
+var animFrame=null,mediaRec=null,recChunks=[];
+
+document.getElementById('vlOpts').addEventListener('click',function(e){
+  var b=e.target.closest('.opt');if(!b)return;
+  this.querySelectorAll('.opt').forEach(function(x){x.classList.remove('on');});
+  b.classList.add('on');vLayer=b.dataset.v;
+});
+
+document.getElementById('vIn').onchange=function(e){
+  var f=e.target.files[0];if(!f)return;
+  vFile=f;
+  var url=URL.createObjectURL(f);
+  videoEl.src=url;
+  videoEl.load();
+  markZone('vArea','vn1',null);
+  checkVideoReady();
+};
+document.getElementById('vfIn').onchange=async function(e){
+  var f=e.target.files[0];if(!f)return;
+  vfImg=await loadImg(f);markZone('vfArea','vn2',vfImg.src);checkVideoReady();
+};
+function checkVideoReady(){document.getElementById('vGoBtn').disabled=!(vFile&&vfImg);}
+
+document.getElementById('vGoBtn').onclick=function(){
+  videoEl.currentTime=0;
+  videoEl.play();
+  // canvasサイズ合わせ（動画メタデータ読み込み後）
+  videoEl.onloadedmetadata=function(){
+    foc.width=videoEl.videoWidth;foc.height=videoEl.videoHeight;
+    startOverlayLoop();
+  };
+  if(videoEl.readyState>=1){
+    foc.width=videoEl.videoWidth;foc.height=videoEl.videoHeight;
+    startOverlayLoop();
+  }
+  var sec=document.getElementById('vAdjSection');
+  sec.classList.remove('hidden');
+  document.getElementById('vResSection').classList.add('hidden');
+  window.scrollTo({top:sec.offsetTop-10,behavior:'smooth'});
 };
 
-document.getElementById('dlBtn').onclick=function(){
-  var rc=document.getElementById('resCanvas');
-  var a=document.createElement('a');
-  a.download='frame_'+Date.now()+'.png';
-  a.href=rc.toDataURL('image/png');
-  a.click();
+function startOverlayLoop(){
+  if(animFrame)cancelAnimationFrame(animFrame);
+  function loop(){
+    focCtx.clearRect(0,0,foc.width,foc.height);
+    if(vLayer==='over'){
+      // 枠のみ描画（動画はvideoElが背景）
+      focCtx.drawImage(vfImg,0,0,foc.width,foc.height);
+    } else {
+      // 人物(動画)が前面 → canvasに動画＋枠を両方描く（枠を先に）
+      focCtx.drawImage(vfImg,0,0,foc.width,foc.height);
+    }
+    animFrame=requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+document.getElementById('vPlayBtn').onclick=function(){
+  if(videoEl.paused){videoEl.play();this.textContent='⏸ 一時停止';}
+  else{videoEl.pause();this.textContent='▶ 再生';}
+};
+
+document.getElementById('vRecBtn').onclick=function(){
+  if(mediaRec&&mediaRec.state==='recording')return;
+  recChunks=[];
+  setSt('vRecStbox','合成中... 動画を最初から再生して録画します','loading');
+  document.getElementById('progWrap').classList.remove('hidden');
+
+  // 合成用offscreen canvas
+  var cw=videoEl.videoWidth,ch=videoEl.videoHeight;
+  var offCanvas=document.createElement('canvas');offCanvas.width=cw;offCanvas.height=ch;
+  var offCtx=offCanvas.getContext('2d');
+
+  // canvasから録画ストリーム
+  var stream=offCanvas.captureStream(30);
+  // 音声も取得
+  try{
+    var audioCtx=new AudioContext();
+    var src=audioCtx.createMediaElementSource(videoEl);
+    var dest=audioCtx.createMediaStreamDestination();
+    src.connect(dest);src.connect(audioCtx.destination);
+    dest.stream.getAudioTracks().forEach(function(t){stream.addTrack(t);});
+  }catch(e){}
+
+  var mimeType='video/webm;codecs=vp9';
+  if(!MediaRecorder.isTypeSupported(mimeType))mimeType='video/webm';
+  mediaRec=new MediaRecorder(stream,{mimeType:mimeType,videoBitsPerSecond:8000000});
+  mediaRec.ondataavailable=function(e){if(e.data.size>0)recChunks.push(e.data);};
+  mediaRec.onstop=function(){
+    var blob=new Blob(recChunks,{type:mimeType});
+    var url=URL.createObjectURL(blob);
+    document.getElementById('vDlBtn').onclick=function(){
+      var a=document.createElement('a');a.download='frame_video_'+Date.now()+'.webm';a.href=url;a.click();
+    };
+    setSt('vRecStbox','合成完了！','done');
+    document.getElementById('progWrap').classList.add('hidden');
+    var resSec=document.getElementById('vResSection');resSec.classList.remove('hidden');
+    window.scrollTo({top:resSec.offsetTop-10,behavior:'smooth'});
+    cancelAnimationFrame(animFrame);
+  };
+
+  videoEl.currentTime=0;
+  videoEl.play();
+  mediaRec.start();
+
+  var dur=videoEl.duration;
+  function drawLoop(){
+    if(!videoEl.paused&&!videoEl.ended){
+      offCtx.clearRect(0,0,cw,ch);
+      if(vLayer==='over'){
+        offCtx.drawImage(videoEl,0,0,cw,ch);
+        offCtx.drawImage(vfImg,0,0,cw,ch);
+      }else{
+        offCtx.drawImage(vfImg,0,0,cw,ch);
+        offCtx.drawImage(videoEl,0,0,cw,ch);
+      }
+      var pct=Math.round((videoEl.currentTime/dur)*100);
+      document.getElementById('progBar').value=pct;
+      document.getElementById('progPct').textContent=pct+'%';
+      animFrame=requestAnimationFrame(drawLoop);
+    }
+  }
+  videoEl.onended=function(){
+    mediaRec.stop();
+    cancelAnimationFrame(animFrame);
+  };
+  animFrame=requestAnimationFrame(drawLoop);
+};
+
+document.getElementById('vRtBtn').onclick=function(){
+  document.getElementById('vResSection').classList.add('hidden');
+  if(mediaRec&&mediaRec.state==='recording')mediaRec.stop();
 };
 </script>
 </body>
