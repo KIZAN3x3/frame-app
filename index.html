@@ -471,18 +471,22 @@ document.getElementById('vIn').onchange=function(e){
   if(vAudioCtx){vAudioCtx.close();vAudioCtx=null;vAudioDestStream=null;}
   videoEl.src=URL.createObjectURL(f);
   videoEl.load();
-  // AudioContext は新しい動画ごとに作成（createMediaElementSource は1要素1回のみ有効）
+  markZone('vArea','vn1',null);
+  checkVideoReady();
+};
+
+// AudioContext の初期化（録画ボタン押下時＝ユーザー操作内で呼ぶこと）
+function initAudioContext(){
+  if(vAudioCtx) return; // 既に作成済みならスキップ
   try{
     vAudioCtx=new (window.AudioContext||window.webkitAudioContext)();
     var src=vAudioCtx.createMediaElementSource(videoEl);
     var dest=vAudioCtx.createMediaStreamDestination();
     src.connect(dest);
-    src.connect(vAudioCtx.destination); // スピーカーにも流す
+    src.connect(vAudioCtx.destination);
     vAudioDestStream=dest.stream;
   }catch(ex){vAudioCtx=null;vAudioDestStream=null;}
-  markZone('vArea','vn1',null);
-  checkVideoReady();
-};
+}
 document.getElementById('vfIn').onchange=async function(e){
   var f=e.target.files[0];if(!f)return;
   vfImg=await loadImg(f);markZone('vfArea','vn2',vfImg.src);checkVideoReady();
@@ -547,10 +551,11 @@ document.getElementById('vRecBtn').onclick=function(){
   document.getElementById('progPct').textContent='0%';
 
   // canvas映像 + AudioContext経由の音声を合成したストリームを作成
+  // ユーザー操作内（ここ）で AudioContext を初期化することで suspended を回避
+  initAudioContext();
   var combined=new MediaStream();
   vpc.captureStream(30).getVideoTracks().forEach(function(t){combined.addTrack(t);});
   if(vAudioCtx&&vAudioDestStream){
-    // AudioContext が suspended になっている場合は resume してから使う
     vAudioCtx.resume();
     vAudioDestStream.getAudioTracks().forEach(function(t){combined.addTrack(t);});
   }
@@ -663,15 +668,21 @@ document.getElementById('cGoBtn').onclick=async function(){
 
 function drawCamFrame(ctx,w,h){
   ctx.clearRect(0,0,w,h);
+  var isFront=(camFacing==='user');
+  if(isFront){
+    // フロントカメラは左右反転して自然な見た目に
+    ctx.save();
+    ctx.translate(w,0);
+    ctx.scale(-1,1);
+  }
   if(cLayer==='frame-top'){
-    // 枠が前面 → カメラ映像を先に、枠を後から（上に）描く
     ctx.drawImage(camVideoEl,0,0,w,h);
     if(cfImg)ctx.drawImage(cfImg,0,0,w,h);
   }else{
-    // 人物が前面 → 枠を先に、カメラ映像を後から（上に）描く
     if(cfImg)ctx.drawImage(cfImg,0,0,w,h);
     ctx.drawImage(camVideoEl,0,0,w,h);
   }
+  if(isFront) ctx.restore();
 }
 
 function startCamPreviewLoop(){
