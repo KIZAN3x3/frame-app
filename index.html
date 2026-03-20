@@ -30,18 +30,21 @@ input[type=file]{display:none;}
 .go{width:100%;padding:15px;border:none;border-radius:var(--rs);background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;}
 .go:disabled{opacity:.3;cursor:not-allowed;}
 .go:active{opacity:.85;}
-#adjCard{display:none;}
-#adjCanvas{display:block;width:100%;border-radius:var(--rs);touch-action:none;}
+/* 調整・結果は最初から表示、canvasで隠す */
+#adjSection{margin-top:10px;}
+#adjCanvas{display:block;width:100%;border-radius:var(--rs);touch-action:none;cursor:grab;}
+#adjCanvas:active{cursor:grabbing;}
 .hint{font-size:11px;color:var(--text2);text-align:center;margin-top:8px;line-height:1.7;}
 .aacts{display:flex;gap:8px;margin-top:10px;}
 .abtn{flex:1;padding:12px;border-radius:var(--rs);border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:13px;cursor:pointer;text-align:center;}
 .abtn.pri{border-color:var(--accent);color:var(--accent);background:rgba(232,119,46,.08);}
 .abtn:active{opacity:.7;}
-#resCard{display:none;}
+#resSection{margin-top:10px;}
 #resCanvas{display:block;width:100%;border-radius:var(--rs);}
-.dlbtn{width:100%;margin-top:10px;padding:14px;border:1.5px solid var(--accent);border-radius:var(--rs);background:transparent;color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;text-align:center;}
+.dlbtn{width:100%;margin-top:10px;padding:14px;border:1.5px solid var(--accent);border-radius:var(--rs);background:transparent;color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;text-align:center;display:block;}
 .dlbtn:active{background:rgba(232,119,46,.1);}
-.rtbtn{width:100%;margin-top:8px;padding:11px;border:1px solid var(--border);border-radius:var(--rs);background:var(--surface2);color:var(--text2);font-size:13px;cursor:pointer;text-align:center;}
+.rtbtn{width:100%;margin-top:8px;padding:11px;border:1px solid var(--border);border-radius:var(--rs);background:var(--surface2);color:var(--text2);font-size:13px;cursor:pointer;text-align:center;display:block;}
+.hidden{display:none!important;}
 </style>
 </head>
 <body>
@@ -51,6 +54,7 @@ input[type=file]{display:none;}
     <p>写真をアップロード → 位置調整 → SNS用ダウンロード</p>
   </header>
 
+  <!-- STEP1 -->
   <div class="card">
     <div class="ch"><div class="num" id="n1">1</div><span class="ct">人物写真</span></div>
     <div class="cb">
@@ -63,6 +67,7 @@ input[type=file]{display:none;}
     </div>
   </div>
 
+  <!-- STEP2 -->
   <div class="card">
     <div class="ch"><div class="num" id="n2">2</div><span class="ct">枠画像</span></div>
     <div class="cb">
@@ -75,6 +80,7 @@ input[type=file]{display:none;}
     </div>
   </div>
 
+  <!-- STEP3 -->
   <div class="card">
     <div class="ch"><div class="num" id="n3">3</div><span class="ct">設定</span></div>
     <div class="cb">
@@ -94,38 +100,44 @@ input[type=file]{display:none;}
     </div>
   </div>
 
-  <div class="card" id="adjCard">
-    <div class="ch"><div class="num" style="background:var(--accent2)">4</div><span class="ct">位置・サイズを調整</span></div>
-    <div class="cb">
-      <canvas id="adjCanvas"></canvas>
-      <p class="hint">
-        📱 スマホ：1本指でドラッグ移動 / 2本指でピンチ拡縮<br>
-        💻 PC：ドラッグで移動 / スクロールでズーム
-      </p>
-      <div class="aacts">
-        <button class="abtn" id="resetBtn">↩ リセット</button>
-        <button class="abtn pri" id="applyBtn">✓ これで合成する</button>
+  <!-- STEP4 調整 -->
+  <div id="adjSection" class="hidden">
+    <div class="card">
+      <div class="ch"><div class="num" style="background:var(--accent2)">4</div><span class="ct">位置・サイズを調整</span></div>
+      <div class="cb">
+        <canvas id="adjCanvas"></canvas>
+        <p class="hint">
+          📱 1本指ドラッグで移動 / 2本指ピンチで拡縮<br>
+          💻 ドラッグで移動 / スクロールでズーム
+        </p>
+        <div class="aacts">
+          <button class="abtn" id="resetBtn">↩ リセット</button>
+          <button class="abtn pri" id="applyBtn">✓ これで合成する</button>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="card" id="resCard">
-    <div class="ch"><div class="num ok">✓</div><span class="ct">合成完了！</span></div>
-    <div class="cb">
-      <canvas id="resCanvas"></canvas>
-      <button class="dlbtn" id="dlBtn">⬇ 画像をダウンロード / 保存</button>
-      <button class="rtbtn" id="rtBtn">↩ 調整に戻る</button>
+  <!-- STEP5 結果 -->
+  <div id="resSection" class="hidden">
+    <div class="card">
+      <div class="ch"><div class="num ok">✓</div><span class="ct">合成完了！</span></div>
+      <div class="cb">
+        <canvas id="resCanvas"></canvas>
+        <button class="dlbtn" id="dlBtn">⬇ 画像をダウンロード / 保存</button>
+        <button class="rtbtn" id="rtBtn">↩ 調整に戻る</button>
+      </div>
     </div>
   </div>
-</div>
 
+</div>
 <script>
-var pImg=null, fImg=null;
-var selSize='1080x1080', selLayer='under';
-var outW=1080, outH=1080;
+var pImg=null,fImg=null,selSize='1080x1080',selLayer='under';
+var outW=1080,outH=1080;
 var adj={x:0,y:0,scale:1,bx:0,by:0,bs:1};
 var ac=document.getElementById('adjCanvas');
-var ctx=ac.getContext('2d');
+var actx=ac.getContext('2d');
+var gestureSetup=false;
 
 ['sOpts','lOpts'].forEach(function(id){
   document.getElementById(id).addEventListener('click',function(e){
@@ -139,18 +151,26 @@ var ctx=ac.getContext('2d');
 function loadImg(file){
   return new Promise(function(res){
     var r=new FileReader();
-    r.onload=function(e){var i=new Image();i.onload=function(){res(i);};i.src=e.target.result;};
+    r.onload=function(e){
+      var i=new Image();
+      i.onload=function(){res(i);};
+      i.src=e.target.result;
+    };
     r.readAsDataURL(file);
   });
 }
 
 function markZone(aId,nId,img){
   var a=document.getElementById(aId);
-  a.classList.add('loaded');a.innerHTML='';
-  var el=document.createElement('img');el.src=img.src;el.style.maxHeight='90px';a.appendChild(el);
+  a.classList.add('loaded');
+  a.innerHTML='';
+  var el=document.createElement('img');
+  el.src=img.src;el.style.maxHeight='90px';
+  a.appendChild(el);
   var t=document.createElement('span');
   t.style.cssText='font-size:11px;color:var(--green);margin-top:4px;';
-  t.textContent='✓ 読み込み完了（タップで変更）';a.appendChild(t);
+  t.textContent='✓ 読み込み完了（タップで変更）';
+  a.appendChild(t);
   document.getElementById(nId).classList.add('ok');
   checkReady();
 }
@@ -171,38 +191,47 @@ function checkReady(){
 }
 
 function draw(){
-  ctx.clearRect(0,0,ac.width,ac.height);
+  actx.clearRect(0,0,ac.width,ac.height);
   var dw=pImg.naturalWidth*adj.scale;
   var dh=pImg.naturalHeight*adj.scale;
   if(selLayer==='over'){
-    ctx.drawImage(fImg,0,0,ac.width,ac.height);
-    ctx.drawImage(pImg,adj.x,adj.y,dw,dh);
+    actx.drawImage(fImg,0,0,ac.width,ac.height);
+    actx.drawImage(pImg,adj.x,adj.y,dw,dh);
   }else{
-    ctx.drawImage(pImg,adj.x,adj.y,dw,dh);
-    ctx.drawImage(fImg,0,0,ac.width,ac.height);
+    actx.drawImage(pImg,adj.x,adj.y,dw,dh);
+    actx.drawImage(fImg,0,0,ac.width,ac.height);
   }
 }
 
-function initAdj(){
+document.getElementById('goBtn').onclick=function(){
+  // サイズ決定
   if(selSize==='auto'){outW=fImg.naturalWidth;outH=fImg.naturalHeight;}
   else{var p=selSize.split('x');outW=parseInt(p[0]);outH=parseInt(p[1]);}
 
-  ac.width=outW; ac.height=outH;
+  // canvasサイズ設定
+  ac.width=outW;
+  ac.height=outH;
 
-  // 人物を画面中央に配置してフィット
-  var pw=pImg.naturalWidth, ph=pImg.naturalHeight;
-  var s=Math.max(outW/pw, outH/ph);
-  var ix=(outW-pw*s)/2;
-  var iy=(outH-ph*s)/2;
+  // 初期配置：人物を中央にフィット
+  var s=Math.max(outW/pImg.naturalWidth,outH/pImg.naturalHeight);
+  var ix=(outW-pImg.naturalWidth*s)/2;
+  var iy=(outH-pImg.naturalHeight*s)/2;
   adj={x:ix,y:iy,scale:s,bx:ix,by:iy,bs:s};
+
+  // 描画
   draw();
 
-  var card=document.getElementById('adjCard');
-  card.style.display='';
-  document.getElementById('resCard').style.display='none';
-  setTimeout(function(){card.scrollIntoView({behavior:'smooth',block:'start'});},50);
-  setupGesture();
-}
+  // 調整セクション表示
+  var adjSec=document.getElementById('adjSection');
+  adjSec.classList.remove('hidden');
+  document.getElementById('resSection').classList.add('hidden');
+
+  // ジェスチャー初期化（1回だけ）
+  if(!gestureSetup){setupGesture();gestureSetup=true;}
+
+  // スクロール
+  window.scrollTo({top:adjSec.offsetTop-10,behavior:'smooth'});
+};
 
 function setupGesture(){
   var st=null,sa=null,md=false,ms=null,mas=null;
@@ -218,12 +247,11 @@ function setupGesture(){
     if(!st||!sa)return;
     var ts=Array.from(e.touches).map(function(t){return{x:t.clientX,y:t.clientY};});
     var cr=ac.getBoundingClientRect();
-    var ratio=ac.width/cr.width;
-
+    var ratio=outW/cr.width;
     if(ts.length===1){
       adj.x=sa.x+(ts[0].x-st[0].x)*ratio;
       adj.y=sa.y+(ts[0].y-st[0].y)*ratio;
-    } else if(ts.length>=2){
+    }else if(ts.length>=2&&st.length>=2){
       var d0=Math.hypot(st[1].x-st[0].x,st[1].y-st[0].y);
       var d1=Math.hypot(ts[1].x-ts[0].x,ts[1].y-ts[0].y);
       var r=d1/d0;
@@ -242,14 +270,14 @@ function setupGesture(){
     e.preventDefault();
     md=true;
     var cr=ac.getBoundingClientRect();
-    var ratio=ac.width/cr.width;
+    var ratio=outW/cr.width;
     ms={x:e.clientX,y:e.clientY};
-    mas={x:adj.x,y:adj.y,scale:adj.scale};
+    mas={x:adj.x,y:adj.y};
   });
   window.addEventListener('mousemove',function(e){
     if(!md)return;
     var cr=ac.getBoundingClientRect();
-    var ratio=ac.width/cr.width;
+    var ratio=outW/cr.width;
     adj.x=mas.x+(e.clientX-ms.x)*ratio;
     adj.y=mas.y+(e.clientY-ms.y)*ratio;
     draw();
@@ -260,7 +288,7 @@ function setupGesture(){
     e.preventDefault();
     var d=e.deltaY>0?0.93:1.07;
     var cr=ac.getBoundingClientRect();
-    var ratio=ac.width/cr.width;
+    var ratio=outW/cr.width;
     var lx=(e.clientX-cr.left)*ratio;
     var ly=(e.clientY-cr.top)*ratio;
     adj.x=lx-(lx-adj.x)*d;
@@ -278,13 +306,15 @@ document.getElementById('applyBtn').onclick=function(){
   var rc=document.getElementById('resCanvas');
   rc.width=outW;rc.height=outH;
   rc.getContext('2d').drawImage(ac,0,0);
-  document.getElementById('resCard').style.display='';
-  setTimeout(function(){document.getElementById('resCard').scrollIntoView({behavior:'smooth',block:'start'});},50);
+  var resSec=document.getElementById('resSection');
+  resSec.classList.remove('hidden');
+  window.scrollTo({top:resSec.offsetTop-10,behavior:'smooth'});
 };
 
 document.getElementById('rtBtn').onclick=function(){
-  document.getElementById('resCard').style.display='none';
-  document.getElementById('adjCard').scrollIntoView({behavior:'smooth'});
+  document.getElementById('resSection').classList.add('hidden');
+  var adjSec=document.getElementById('adjSection');
+  window.scrollTo({top:adjSec.offsetTop-10,behavior:'smooth'});
 };
 
 document.getElementById('dlBtn').onclick=function(){
@@ -293,10 +323,6 @@ document.getElementById('dlBtn').onclick=function(){
   a.download='frame_'+Date.now()+'.png';
   a.href=rc.toDataURL('image/png');
   a.click();
-};
-
-document.getElementById('goBtn').onclick=function(){
-  initAdj();
 };
 </script>
 </body>
