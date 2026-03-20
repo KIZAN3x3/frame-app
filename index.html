@@ -157,6 +157,18 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
 
   <!-- ========== 動画モード ========== -->
   <div id="videoMode" class="hidden">
+    <div id="iosVideoWarn" class="hidden">
+      <div class="card" style="border-color:var(--red);">
+        <div class="cb" style="display:flex;gap:10px;align-items:flex-start;">
+          <span style="font-size:22px;flex-shrink:0">🚫</span>
+          <div>
+            <p style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:4px;">iOS非対応</p>
+            <p style="font-size:12px;color:var(--text2);line-height:1.7;">動画モード・カメラモードはiOS Safariでは動作しません。<br>Android または PC（Chrome推奨）でご利用ください。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="videoModeContent">
     <div class="card">
       <div class="ch"><div class="num" id="vn1">1</div><span class="ct">動画をアップロード</span></div>
       <div class="cb">
@@ -224,10 +236,23 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
         </div>
       </div>
     </div>
+    </div><!-- /videoModeContent -->
   </div>
 
   <!-- ========== カメラモード ========== -->
   <div id="cameraMode" class="hidden">
+    <div id="iosCameraWarn" class="hidden">
+      <div class="card" style="border-color:var(--red);">
+        <div class="cb" style="display:flex;gap:10px;align-items:flex-start;">
+          <span style="font-size:22px;flex-shrink:0">🚫</span>
+          <div>
+            <p style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:4px;">iOS非対応</p>
+            <p style="font-size:12px;color:var(--text2);line-height:1.7;">動画モード・カメラモードはiOS Safariでは動作しません。<br>Android または PC（Chrome推奨）でご利用ください。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="cameraModeContent">
     <div class="card">
       <div class="ch"><div class="num" id="cn1">1</div><span class="ct">枠画像</span></div>
       <div class="cb">
@@ -288,10 +313,14 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
         </div>
       </div>
     </div>
+    </div><!-- /cameraModeContent -->
   </div>
 
 </div>
 <script>
+// ===== iOS判定 =====
+var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
+
 // ===== タブ切り替え =====
 function switchTab(mode){
   ['photo','video','camera'].forEach(function(m){
@@ -299,6 +328,15 @@ function switchTab(mode){
     var tid=m==='photo'?'tabPhoto':m==='video'?'tabVideo':'tabCamera';
     document.getElementById(tid).classList.toggle('on',m===mode);
   });
+  // iOSなら動画・カメラモードで警告を表示しコンテンツを隠す
+  if(mode==='video'){
+    document.getElementById('iosVideoWarn').classList.toggle('hidden',!isIOS);
+    document.getElementById('videoModeContent').classList.toggle('hidden',isIOS);
+  }
+  if(mode==='camera'){
+    document.getElementById('iosCameraWarn').classList.toggle('hidden',!isIOS);
+    document.getElementById('cameraModeContent').classList.toggle('hidden',isIOS);
+  }
   // カメラタブから離れたらカメラ停止
   if(mode!=='camera') stopCamera();
   window.scrollTo({top:0,behavior:'smooth'});
@@ -417,6 +455,7 @@ var vpc=document.getElementById('vPreviewCanvas'); // 表示&録画共通 canvas
 var vpcCtx=vpc.getContext('2d');
 var vAnimFrame=null; // 動画モード専用raf
 var vMediaRec=null,vRecChunks=[];
+var vAudioCtx=null,vAudioDestStream=null; // 音声用（videoElごとに1度だけ初期化）
 
 document.getElementById('vlOpts').addEventListener('click',function(e){
   var b=e.target.closest('.opt');if(!b)return;
@@ -427,10 +466,20 @@ document.getElementById('vlOpts').addEventListener('click',function(e){
 document.getElementById('vIn').onchange=function(e){
   var f=e.target.files[0];if(!f)return;
   vFile=f;
-  // 前の URL を解放
   if(videoEl.src)URL.revokeObjectURL(videoEl.src);
+  // 古い AudioContext を破棄
+  if(vAudioCtx){vAudioCtx.close();vAudioCtx=null;vAudioDestStream=null;}
   videoEl.src=URL.createObjectURL(f);
   videoEl.load();
+  // AudioContext は新しい動画ごとに作成（createMediaElementSource は1要素1回のみ有効）
+  try{
+    vAudioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    var src=vAudioCtx.createMediaElementSource(videoEl);
+    var dest=vAudioCtx.createMediaStreamDestination();
+    src.connect(dest);
+    src.connect(vAudioCtx.destination); // スピーカーにも流す
+    vAudioDestStream=dest.stream;
+  }catch(ex){vAudioCtx=null;vAudioDestStream=null;}
   markZone('vArea','vn1',null);
   checkVideoReady();
 };
@@ -497,22 +546,15 @@ document.getElementById('vRecBtn').onclick=function(){
   document.getElementById('progBar').value=0;
   document.getElementById('progPct').textContent='0%';
 
-  var cw=vpc.width,ch=vpc.height;
-
-  // canvas映像ストリーム + videoEl音声ストリームを合成
-  var videoStream=vpc.captureStream(30);
-  var stream=videoStream;
-  try{
-    // videoEl.captureStream() で音声トラックを直接取得（AudioContext不要）
-    var srcStream=videoEl.captureStream();
-    var audioTracks=srcStream.getAudioTracks();
-    if(audioTracks.length>0){
-      var combined=new MediaStream();
-      videoStream.getVideoTracks().forEach(function(t){combined.addTrack(t);});
-      audioTracks.forEach(function(t){combined.addTrack(t);});
-      stream=combined;
-    }
-  }catch(e){/* 音声なしで続行 */}
+  // canvas映像 + AudioContext経由の音声を合成したストリームを作成
+  var combined=new MediaStream();
+  vpc.captureStream(30).getVideoTracks().forEach(function(t){combined.addTrack(t);});
+  if(vAudioCtx&&vAudioDestStream){
+    // AudioContext が suspended になっている場合は resume してから使う
+    vAudioCtx.resume();
+    vAudioDestStream.getAudioTracks().forEach(function(t){combined.addTrack(t);});
+  }
+  var stream=combined;
 
   var mimeType='video/webm;codecs=vp9';
   if(!MediaRecorder.isTypeSupported(mimeType))mimeType='video/webm;codecs=vp8';
