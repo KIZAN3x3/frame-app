@@ -196,7 +196,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
         <div class="ch"><div class="num" style="background:var(--accent2)">4</div><span class="ct">プレビュー確認・録画</span></div>
         <div class="cb">
           <!-- 隠し video 要素（描画ソース） -->
-          <video id="videoEl" class="src-video" playsinline muted loop></video>
+          <video id="videoEl" class="src-video" playsinline loop></video>
           <!-- プレビューも録画も同じ offscreen canvas から captureStream するので、
                表示用 canvas を1枚だけ置く -->
           <canvas id="vPreviewCanvas" class="preview-canvas"></canvas>
@@ -446,12 +446,12 @@ function checkVideoReady(){document.getElementById('vGoBtn').disabled=!(vFile&&v
 // canvas に1フレーム合成描画（プレビュー・録画共用）
 function drawVideoFrame(ctx,w,h){
   ctx.clearRect(0,0,w,h);
-  if(vLayer==='over'){
-    // 動画→枠の順（枠が前面）
+  if(vLayer==='under'){
+    // 枠が前面 → 動画を先に、枠を後から（上に）描く
     ctx.drawImage(videoEl,0,0,w,h);
     ctx.drawImage(vfImg,0,0,w,h);
   }else{
-    // 枠→動画の順（動画が前面）
+    // 人物が前面 → 枠を先に、動画を後から（上に）描く
     ctx.drawImage(vfImg,0,0,w,h);
     ctx.drawImage(videoEl,0,0,w,h);
   }
@@ -505,16 +505,18 @@ document.getElementById('vRecBtn').onclick=function(){
   // captureStream は表示中の vPreviewCanvas から取る
   var stream=vpc.captureStream(30);
 
-  // 音声トラックを追加（同じ videoEl に対して1度だけ createMediaElementSource）
+  // 音声トラックを追加（createMediaElementSource は videoEl につき1度だけ）
   try{
     if(!vAudioCtx){
       vAudioCtx=new (window.AudioContext||window.webkitAudioContext)();
       vAudioSrc=vAudioCtx.createMediaElementSource(videoEl);
-      var dest=vAudioCtx.createMediaStreamDestination();
-      vAudioSrc.connect(dest);
+      var vAudioDest=vAudioCtx.createMediaStreamDestination();
+      vAudioSrc.connect(vAudioDest);
       vAudioSrc.connect(vAudioCtx.destination);
-      dest.stream.getAudioTracks().forEach(function(t){stream.addTrack(t);});
+      // dest を変数にキャッシュ
+      vAudioCtx._dest=vAudioDest;
     }
+    vAudioCtx._dest.stream.getAudioTracks().forEach(function(t){stream.addTrack(t);});
   }catch(e){/* 音声なしで続行 */}
 
   var mimeType='video/webm;codecs=vp9';
@@ -624,10 +626,12 @@ document.getElementById('cGoBtn').onclick=async function(){
 
 function drawCamFrame(ctx,w,h){
   ctx.clearRect(0,0,w,h);
-  if(cLayer==='over'){
+  if(cLayer==='under'){
+    // 枠が前面 → カメラ映像を先に、枠を後から（上に）描く
     ctx.drawImage(camVideoEl,0,0,w,h);
     if(cfImg)ctx.drawImage(cfImg,0,0,w,h);
   }else{
+    // 人物が前面 → 枠を先に、カメラ映像を後から（上に）描く
     if(cfImg)ctx.drawImage(cfImg,0,0,w,h);
     ctx.drawImage(camVideoEl,0,0,w,h);
   }
