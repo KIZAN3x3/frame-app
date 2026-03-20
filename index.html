@@ -211,7 +211,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
           <video id="videoEl" class="src-video" playsinline loop></video>
           <!-- プレビューも録画も同じ offscreen canvas から captureStream するので、
                表示用 canvas を1枚だけ置く -->
-          <canvas id="vPreviewCanvas" class="preview-canvas"></canvas>
+          <canvas id="vPreviewCanvas" class="preview-canvas" style="touch-action:none;cursor:grab;"></canvas>
           <p class="hint">📱 1本指ドラッグで移動 / 2本指ピンチで拡縮<br>💻 ドラッグで移動 / スクロールでズーム</p>
           <div class="aacts" style="margin-top:10px;">
             <button class="abtn" id="vPlayBtn">▶ 再生</button>
@@ -691,12 +691,6 @@ var cAnimFrame=null;
 var cMediaRec=null,cRecChunks=[];
 var cRecStartTime=null,cRecTimerID=null;
 
-// フロント/リア切替ボタン
-document.getElementById('cSwitchBtn').onclick=function(){
-  camFacing=(camFacing==='user')?'environment':'user';
-  startCamera();
-};
-
 document.getElementById('clOpts').addEventListener('click',function(e){
   var b=e.target.closest('.opt');if(!b)return;
   this.querySelectorAll('.opt').forEach(function(x){x.classList.remove('on');});
@@ -709,25 +703,54 @@ document.getElementById('cfIn').onchange=async function(e){
   document.getElementById('cGoBtn').disabled=false;
 };
 
+var camDeviceIds=[]; // 使えるカメラのdeviceIdリスト
+var camDeviceIndex=0; // 現在のカメラインデックス
+
+// カメラデバイス一覧を取得（初回起動時に呼ぶ）
+async function enumCameras(){
+  try{
+    // 一度許可を取らないとdeviceIdが空になるブラウザ対策
+    var tmp=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+    tmp.getTracks().forEach(function(t){t.stop();});
+  }catch(e){}
+  var devices=await navigator.mediaDevices.enumerateDevices();
+  camDeviceIds=devices
+    .filter(function(d){return d.kind==='videoinput';})
+    .map(function(d){return d.deviceId;});
+  camDeviceIndex=0;
+}
+
 async function startCamera(){
   setSt('cStbox','カメラ起動中…','loading');
   if(cAnimFrame){cancelAnimationFrame(cAnimFrame);cAnimFrame=null;}
   if(camStream){camStream.getTracks().forEach(function(t){t.stop();});camStream=null;}
 
-  // カメラ起動ボタンのラベル更新
-  var label=camFacing==='user'?'フロント':'リア';
-  document.getElementById('cGoBtn').textContent='▶ カメラ起動（'+label+'）';
-
-  // facingMode:exact → フォールバック の順で試みる
-  var constraints=[
-    {video:{facingMode:{exact:camFacing},width:{ideal:1080},height:{ideal:1080}},audio:true},
-    {video:{facingMode:camFacing},audio:true},
-    {video:true,audio:true}
-  ];
   var gotStream=null;
-  for(var i=0;i<constraints.length;i++){
-    try{gotStream=await navigator.mediaDevices.getUserMedia(constraints[i]);break;}catch(e){}
+
+  // deviceIdが取れていればそれで指定、なければfacingModeで試みる
+  if(camDeviceIds.length>0){
+    var deviceId=camDeviceIds[camDeviceIndex];
+    try{
+      gotStream=await navigator.mediaDevices.getUserMedia({
+        video:{deviceId:{exact:deviceId},width:{ideal:1080},height:{ideal:1080}},
+        audio:true
+      });
+    }catch(e){}
   }
+  // fallback: facingMode
+  if(!gotStream){
+    try{
+      gotStream=await navigator.mediaDevices.getUserMedia({
+        video:{facingMode:camFacing,width:{ideal:1080},height:{ideal:1080}},
+        audio:true
+      });
+    }catch(e){}
+  }
+  // fallback: video only constraint
+  if(!gotStream){
+    try{gotStream=await navigator.mediaDevices.getUserMedia({video:true,audio:true});}catch(e){}
+  }
+
   if(!gotStream){setSt('cStbox','カメラにアクセスできませんでした','err');return;}
 
   camStream=gotStream;
@@ -740,13 +763,29 @@ async function startCamera(){
   cpc.height=camVideoEl.videoHeight||640;
   hideSt('cStbox');
   startCamPreviewLoop();
-  var sec=document.getElementById('cAdjSection');
-  sec.classList.remove('hidden');
+  var adjSec=document.getElementById('cAdjSection');
+  adjSec.classList.remove('hidden');
   document.getElementById('cResSection').classList.add('hidden');
-  window.scrollTo({top:sec.offsetTop-10,behavior:'smooth'});
+  window.scrollTo({top:adjSec.offsetTop-10,behavior:'smooth'});
 }
 
-document.getElementById('cGoBtn').onclick=function(){ startCamera(); };
+document.getElementById('cGoBtn').onclick=async function(){
+  await enumCameras();
+  camDeviceIndex=0;
+  startCamera();
+};
+
+// 🔄 切替ボタン：次のカメラに順番に切り替え
+document.getElementById('cSwitchBtn').onclick=function(){
+  if(camDeviceIds.length>1){
+    camDeviceIndex=(camDeviceIndex+1)%camDeviceIds.length;
+    startCamera();
+  }else{
+    // デバイス一覧が取れていない場合はfacingModeで切替
+    camFacing=(camFacing==='user')?'environment':'user';
+    startCamera();
+  }
+};
 
 function drawCamFrame(ctx,w,h){
   ctx.clearRect(0,0,w,h);
