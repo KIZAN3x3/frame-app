@@ -631,33 +631,46 @@ var cAnimFrame=null;
 var cMediaRec=null,cRecChunks=[];
 var cRecStartTime=null,cRecTimerID=null;
 
+// フロント/リア切替 → 即座にカメラ再起動
 document.getElementById('camFaceOpts').addEventListener('click',function(e){
   var b=e.target.closest('.opt');if(!b)return;
   this.querySelectorAll('.opt').forEach(function(x){x.classList.remove('on');});
-  b.classList.add('on');camFacing=b.dataset.v;
+  b.classList.add('on');
+  camFacing=b.dataset.v;
+  // カメラが既に起動中なら再起動
+  if(camStream) startCamera();
 });
+
 document.getElementById('clOpts').addEventListener('click',function(e){
   var b=e.target.closest('.opt');if(!b)return;
   this.querySelectorAll('.opt').forEach(function(x){x.classList.remove('on');});
   b.classList.add('on');cLayer=b.dataset.v;
 });
+
 document.getElementById('cfIn').onchange=async function(e){
   var f=e.target.files[0];if(!f)return;
   cfImg=await loadImg(f);markZone('cfArea','cn1',cfImg.src);
   document.getElementById('cGoBtn').disabled=false;
 };
 
-document.getElementById('cGoBtn').onclick=async function(){
-  setSt('cStbox','カメラの使用許可を確認中…','loading');
+async function startCamera(){
+  setSt('cStbox','カメラ起動中…','loading');
   try{
-    if(camStream)stopCamera();
+    // 既存ストリームを停止（映像トラックのみ。音声は継続可）
+    if(camStream){
+      camStream.getTracks().forEach(function(t){t.stop();});
+      camStream=null;
+    }
+    if(cAnimFrame){cancelAnimationFrame(cAnimFrame);cAnimFrame=null;}
+
     camStream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:camFacing,width:{ideal:1080},height:{ideal:1080}},
+      video:{facingMode:{exact:camFacing},width:{ideal:1080},height:{ideal:1080}},
       audio:true
     });
     camVideoEl.srcObject=camStream;
-    await new Promise(function(res){
-      camVideoEl.onloadedmetadata=function(){camVideoEl.play();res();};
+    camVideoEl.muted=true; // スピーカーハウリング防止（録音には影響しない）
+    await new Promise(function(res,rej){
+      camVideoEl.onloadedmetadata=function(){camVideoEl.play().then(res).catch(rej);};
     });
     cpc.width=camVideoEl.videoWidth||640;
     cpc.height=camVideoEl.videoHeight||640;
@@ -668,17 +681,40 @@ document.getElementById('cGoBtn').onclick=async function(){
     document.getElementById('cResSection').classList.add('hidden');
     window.scrollTo({top:sec.offsetTop-10,behavior:'smooth'});
   }catch(err){
-    setSt('cStbox','カメラにアクセスできませんでした：'+err.message,'err');
+    // facingMode:exact が失敗した場合はフォールバック
+    try{
+      camStream=await navigator.mediaDevices.getUserMedia({
+        video:{facingMode:camFacing,width:{ideal:1080},height:{ideal:1080}},
+        audio:true
+      });
+      camVideoEl.srcObject=camStream;
+      camVideoEl.muted=true;
+      await new Promise(function(res,rej){
+        camVideoEl.onloadedmetadata=function(){camVideoEl.play().then(res).catch(rej);};
+      });
+      cpc.width=camVideoEl.videoWidth||640;
+      cpc.height=camVideoEl.videoHeight||640;
+      hideSt('cStbox');
+      startCamPreviewLoop();
+      var sec=document.getElementById('cAdjSection');
+      sec.classList.remove('hidden');
+      document.getElementById('cResSection').classList.add('hidden');
+      window.scrollTo({top:sec.offsetTop-10,behavior:'smooth'});
+    }catch(err2){
+      setSt('cStbox','カメラにアクセスできませんでした：'+err2.message,'err');
+    }
   }
-};
+}
+
+document.getElementById('cGoBtn').onclick=function(){ startCamera(); };
 
 function drawCamFrame(ctx,w,h){
   ctx.clearRect(0,0,w,h);
   var isFront=(camFacing==='user');
 
-  // カメラ映像を描画（フロントのみ左右反転）
   function drawVideo(){
     if(isFront){
+      // フロントカメラのみ左右反転（鏡像を自然な見た目に）
       ctx.save();
       ctx.translate(w,0);
       ctx.scale(-1,1);
@@ -690,11 +726,9 @@ function drawCamFrame(ctx,w,h){
   }
 
   if(cLayer==='frame-top'){
-    // 枠が前面 → 映像→枠の順
     drawVideo();
-    if(cfImg)ctx.drawImage(cfImg,0,0,w,h);
+    if(cfImg)ctx.drawImage(cfImg,0,0,w,h); // 枠は反転しない
   }else{
-    // 人物が前面 → 枠→映像の順
     if(cfImg)ctx.drawImage(cfImg,0,0,w,h);
     drawVideo();
   }
@@ -722,7 +756,6 @@ document.getElementById('cStopBtn').onclick=function(){
 
 document.getElementById('cRecBtn').onclick=function(){
   if(cMediaRec&&cMediaRec.state==='recording'){
-    // 録画停止
     cMediaRec.stop();
     clearInterval(cRecTimerID);
     this.textContent='⏺ 録画開始';
@@ -731,15 +764,18 @@ document.getElementById('cRecBtn').onclick=function(){
     return;
   }
   cRecChunks=[];
-  var stream=cpc.captureStream(30);
-  // 音声はカメラストリームから取得
-  try{
-    camStream.getAudioTracks().forEach(function(t){stream.addTrack(t);});
-  }catch(e){}
+
+  // canvas映像 + camStreamの音声トラックを合成
+  var combined=new MediaStream();
+  cpc.captureStream(30).getVideoTracks().forEach(function(t){combined.addTrack(t);});
+  if(camStream){
+    camStream.getAudioTracks().forEach(function(t){combined.addTrack(t);});
+  }
 
   var mimeType='video/webm;codecs=vp9';
+  if(!MediaRecorder.isTypeSupported(mimeType))mimeType='video/webm;codecs=vp8';
   if(!MediaRecorder.isTypeSupported(mimeType))mimeType='video/webm';
-  cMediaRec=new MediaRecorder(stream,{mimeType:mimeType});
+  cMediaRec=new MediaRecorder(combined,{mimeType:mimeType});
   cMediaRec.ondataavailable=function(e){if(e.data&&e.data.size>0)cRecChunks.push(e.data);};
   cMediaRec.onstop=function(){
     var blob=new Blob(cRecChunks,{type:mimeType});
@@ -747,7 +783,6 @@ document.getElementById('cRecBtn').onclick=function(){
     document.getElementById('cVideoDlBtn').onclick=function(){
       var a=document.createElement('a');a.download='cam_frame_'+Date.now()+'.webm';a.href=url;a.click();
     };
-    // スナップショット（最終フレームを静止画に）
     var snap=document.getElementById('cSnapCanvas');
     snap.width=cpc.width;snap.height=cpc.height;
     snap.getContext('2d').drawImage(cpc,0,0);
