@@ -215,6 +215,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
           <p class="hint">フレームが重なったプレビューを確認してください</p>
           <div class="aacts" style="margin-top:10px;">
             <button class="abtn" id="vPlayBtn">▶ 再生</button>
+            <button class="abtn" id="vMuteBtn">🔇 ミュート</button>
             <button class="abtn pri" id="vRecBtn">⏺ 録画して合成</button>
           </div>
           <div class="stbox" id="vRecStbox"></div>
@@ -541,6 +542,11 @@ document.getElementById('vPlayBtn').onclick=function(){
   else{videoEl.pause();this.textContent='▶ 再生';}
 };
 
+document.getElementById('vMuteBtn').onclick=function(){
+  videoEl.muted=!videoEl.muted;
+  this.textContent=videoEl.muted?'🔊 ミュート解除':'🔇 ミュート';
+};
+
 document.getElementById('vRecBtn').onclick=function(){
   if(vMediaRec&&vMediaRec.state==='recording')return;
   vRecChunks=[];
@@ -647,7 +653,7 @@ document.getElementById('cGoBtn').onclick=async function(){
     if(camStream)stopCamera();
     camStream=await navigator.mediaDevices.getUserMedia({
       video:{facingMode:camFacing,width:{ideal:1080},height:{ideal:1080}},
-      audio:false
+      audio:true
     });
     camVideoEl.srcObject=camStream;
     await new Promise(function(res){
@@ -669,20 +675,29 @@ document.getElementById('cGoBtn').onclick=async function(){
 function drawCamFrame(ctx,w,h){
   ctx.clearRect(0,0,w,h);
   var isFront=(camFacing==='user');
-  if(isFront){
-    // フロントカメラは左右反転して自然な見た目に
-    ctx.save();
-    ctx.translate(w,0);
-    ctx.scale(-1,1);
+
+  // カメラ映像を描画（フロントのみ左右反転）
+  function drawVideo(){
+    if(isFront){
+      ctx.save();
+      ctx.translate(w,0);
+      ctx.scale(-1,1);
+      ctx.drawImage(camVideoEl,0,0,w,h);
+      ctx.restore();
+    }else{
+      ctx.drawImage(camVideoEl,0,0,w,h);
+    }
   }
+
   if(cLayer==='frame-top'){
-    ctx.drawImage(camVideoEl,0,0,w,h);
+    // 枠が前面 → 映像→枠の順
+    drawVideo();
     if(cfImg)ctx.drawImage(cfImg,0,0,w,h);
   }else{
+    // 人物が前面 → 枠→映像の順
     if(cfImg)ctx.drawImage(cfImg,0,0,w,h);
-    ctx.drawImage(camVideoEl,0,0,w,h);
+    drawVideo();
   }
-  if(isFront) ctx.restore();
 }
 
 function startCamPreviewLoop(){
