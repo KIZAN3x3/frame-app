@@ -409,6 +409,7 @@ document.getElementById('pIn').onchange=async function(e){
 document.getElementById('fIn').onchange=async function(e){
   var f=e.target.files[0];if(!f)return;
   fImg=await loadImg(f);markZone('fArea','n2',fImg.src);checkPhotoReady();
+  document.getElementById('pSavePresetBtn').disabled=false;
 };
 function checkPhotoReady(){document.getElementById('goBtn').disabled=!(pImg&&fImg);}
 function drawPhoto(){
@@ -510,6 +511,7 @@ function initAudioContext(){
 document.getElementById('vfIn').onchange=async function(e){
   var f=e.target.files[0];if(!f)return;
   vfImg=await loadImg(f);markZone('vfArea','vn2',vfImg.src);checkVideoReady();
+  document.getElementById('vSavePresetBtn').disabled=false;
 };
 function checkVideoReady(){document.getElementById('vGoBtn').disabled=!(vFile&&vfImg);}
 
@@ -601,8 +603,9 @@ function startVideoPreviewLoop(){
 document.getElementById('vGoBtn').onclick=function(){
   // メタデータ読み込み後にcanvasサイズを確定してループ開始
   function onMeta(){
-    vpc.width=videoEl.videoWidth||640;
-    vpc.height=videoEl.videoHeight||360;
+    // canvasサイズは枠画像基準（枠が伸び縮みしないよう）
+    vpc.width=vfImg.naturalWidth||videoEl.videoWidth||640;
+    vpc.height=vfImg.naturalHeight||videoEl.videoHeight||360;
     resetVAdj();
     videoEl.play();
     setupVideoGesture();
@@ -781,8 +784,9 @@ async function startCamera(){
   await new Promise(function(res){
     camVideoEl.onloadedmetadata=function(){camVideoEl.play();res();};
   });
-  cpc.width=camVideoEl.videoWidth||640;
-  cpc.height=camVideoEl.videoHeight||640;
+  // canvasサイズは枠画像基準（枠が伸び縮みしないよう）
+  cpc.width=(cfImg&&cfImg.naturalWidth)||camVideoEl.videoWidth||640;
+  cpc.height=(cfImg&&cfImg.naturalHeight)||camVideoEl.videoHeight||640;
   resetCAdj();
   hideSt('cStbox');
   startCamPreviewLoop();
@@ -998,6 +1002,19 @@ document.getElementById('cRtBtn').onclick=function(){
   hideSt('cRecStbox');
 };
 
+// ===== トースト通知 =====
+function showPresetToast(msg){
+  var t=document.getElementById('presetToast');
+  if(!t){
+    t=document.createElement('div');t.id='presetToast';
+    t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;font-weight:600;z-index:9999;pointer-events:none;transition:opacity .3s;';
+    document.body.appendChild(t);
+  }
+  t.textContent=msg;t.style.opacity='1';
+  clearTimeout(t._tid);
+  t._tid=setTimeout(function(){t.style.opacity='0';},1800);
+}
+
 // ===== 合図音（Web Audio API） =====
 function playBeep(freq, dur, vol){
   try{
@@ -1068,8 +1085,7 @@ document.getElementById('savePresetBtn').onclick=function(){
   arr.push({name:name,data:data});
   savePresets(arr);
   renderAllPresets();
-  setSt('cStbox','プリセットに保存しました','done');
-  setTimeout(function(){hideSt('cStbox');},1500);
+  showPresetToast('写真モード：プリセットに保存しました');
 };
 
 // ページ読み込み時にプリセット表示
@@ -1168,8 +1184,7 @@ document.getElementById('pSavePresetBtn').onclick=function(){
   var arr=loadPresets();
   arr.push({name:'枠'+(arr.length+1),data:data});
   savePresets(arr);renderAllPresets();
-  setSt('cStbox','プリセットに保存しました','done');
-  setTimeout(function(){hideSt('cStbox');},1500);
+  showPresetToast('写真モード：プリセットに保存しました');
 };
 
 // 動画モード プリセット保存ボタン
@@ -1182,6 +1197,7 @@ document.getElementById('vSavePresetBtn').onclick=function(){
   var arr=loadPresets();
   arr.push({name:'枠'+(arr.length+1),data:data});
   savePresets(arr);renderAllPresets();
+  showPresetToast('動画モード：プリセットに保存しました');
 };
 
 // fIn/vfIn 変更時にプリセット保存ボタン有効化
