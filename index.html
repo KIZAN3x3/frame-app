@@ -511,7 +511,6 @@ function initAudioContext(){
 document.getElementById('vfIn').onchange=async function(e){
   var f=e.target.files[0];if(!f)return;
   vfImg=await loadImg(f);markZone('vfArea','vn2',vfImg.src);checkVideoReady();
-  document.getElementById('vSavePresetBtn').disabled=false;
 };
 function checkVideoReady(){document.getElementById('vGoBtn').disabled=!(vFile&&vfImg);}
 
@@ -535,8 +534,9 @@ function drawVideoFrame(ctx,w,h){
 
 function resetVAdj(){
   var w=vpc.width,h=vpc.height;
-  var vw=videoEl.videoWidth,vh=videoEl.videoHeight;
-  var s=Math.max(w/vw,h/vh);
+  var vw=videoEl.videoWidth||w,vh=videoEl.videoHeight||h;
+  // アスペクト比を保ってcanvas内にフィット（contain）
+  var s=Math.min(w/vw,h/vh);
   vAdj={x:(w-vw*s)/2,y:(h-vh*s)/2,scale:s};
 }
 
@@ -603,9 +603,9 @@ function startVideoPreviewLoop(){
 document.getElementById('vGoBtn').onclick=function(){
   // メタデータ読み込み後にcanvasサイズを確定してループ開始
   function onMeta(){
-    // canvasサイズは枠画像基準（枠が伸び縮みしないよう）
-    vpc.width=vfImg.naturalWidth||videoEl.videoWidth||640;
-    vpc.height=vfImg.naturalHeight||videoEl.videoHeight||360;
+    // canvasサイズは枠画像のオリジナルサイズ基準（枠比率を保持）
+    vpc.width=vfImg.naturalWidth;
+    vpc.height=vfImg.naturalHeight;
     resetVAdj();
     videoEl.play();
     setupVideoGesture();
@@ -784,9 +784,10 @@ async function startCamera(){
   await new Promise(function(res){
     camVideoEl.onloadedmetadata=function(){camVideoEl.play();res();};
   });
-  // canvasサイズは枠画像基準（枠が伸び縮みしないよう）
-  cpc.width=(cfImg&&cfImg.naturalWidth)||camVideoEl.videoWidth||640;
-  cpc.height=(cfImg&&cfImg.naturalHeight)||camVideoEl.videoHeight||640;
+  // canvasサイズは枠画像のオリジナルサイズ基準（枠比率を保持）
+  // 枠がない場合はカメラ映像サイズにフォールバック
+  cpc.width=(cfImg&&cfImg.naturalWidth>0)?cfImg.naturalWidth:(camVideoEl.videoWidth||640);
+  cpc.height=(cfImg&&cfImg.naturalHeight>0)?cfImg.naturalHeight:(camVideoEl.videoHeight||640);
   resetCAdj();
   hideSt('cStbox');
   startCamPreviewLoop();
@@ -813,7 +814,8 @@ document.getElementById('cSwitchBtn').onclick=function(){
 function resetCAdj(){
   var w=cpc.width,h=cpc.height;
   var vw=camVideoEl.videoWidth||w,vh=camVideoEl.videoHeight||h;
-  var s=Math.max(w/vw,h/vh);
+  // アスペクト比を保ってcanvas内にフィット（contain）
+  var s=Math.min(w/vw,h/vh);
   cAdj={x:(w-vw*s)/2,y:(h-vh*s)/2,scale:s};
 }
 
