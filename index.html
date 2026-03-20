@@ -110,6 +110,13 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
           <span style="font-size:11px;color:var(--text2)">透過PNG対応</span>
         </div>
         <input type="file" id="fIn" accept="image/*">
+        <div id="pPresetArea" style="margin-top:10px;display:none;">
+          <p style="font-size:11px;color:var(--text2);margin-bottom:6px;">保存済みプリセット</p>
+          <div id="pPresetList" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <button class="abtn" id="pSavePresetBtn" style="flex:1;font-size:11px;padding:8px;" disabled>＋ 現在の枠をプリセット保存</button>
+        </div>
       </div>
     </div>
     <div class="card">
@@ -189,6 +196,13 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
           <span style="font-size:11px;color:var(--text2)">透過PNG対応</span>
         </div>
         <input type="file" id="vfIn" accept="image/*">
+        <div id="vPresetArea" style="margin-top:10px;display:none;">
+          <p style="font-size:11px;color:var(--text2);margin-bottom:6px;">保存済みプリセット</p>
+          <div id="vPresetList" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <button class="abtn" id="vSavePresetBtn" style="flex:1;font-size:11px;padding:8px;" disabled>＋ 現在の枠をプリセット保存</button>
+        </div>
       </div>
     </div>
     <div class="card">
@@ -314,7 +328,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
           <canvas id="cSnapCanvas" class="preview-canvas hidden"></canvas>
           <button class="dlbtn" id="cVideoDlBtn" style="margin-top:0">⬇ 動画をダウンロード（WebM）</button>
           <button class="dlbtn" id="cSnapBtn" style="border-color:var(--green);color:var(--green);margin-top:8px">📸 静止画として保存（PNG・枠あり）</button>
-          <button class="dlbtn" id="cSnapNoFrameBtn" style="border-color:var(--text2);color:var(--text2);margin-top:8px">📸 静止画として保存（PNG・枠なし）</button>
+          <button class="dlbtn" id="cVideoNoFrameBtn" style="border-color:var(--text2);color:var(--text2);margin-top:8px">🎬 動画をダウンロード（WebM・枠なし）</button>
           <button class="rtbtn" id="cRtBtn">↩ カメラに戻る</button>
         </div>
       </div>
@@ -698,6 +712,7 @@ var cpc=document.getElementById('camPreviewCanvas');
 var cpcCtx=cpc.getContext('2d');
 var cAnimFrame=null;
 var cMediaRec=null,cRecChunks=[];
+var cNoFrameRec=null,cNoFrameVideoUrl=null;
 var cRecStartTime=null,cRecTimerID=null;
 var camDeviceIds=[],camDeviceIndex=0;
 var cAdj={x:0,y:0,scale:1},cGestureReady=false;
@@ -897,12 +912,17 @@ document.getElementById('cStopBtn').onclick=function(){
 
 document.getElementById('cRecBtn').onclick=function(){
   if(cMediaRec&&cMediaRec.state==='recording'){
-    cMediaRec.stop();clearInterval(cRecTimerID);
+    cMediaRec.stop();
+    if(cNoFrameRec&&cNoFrameRec.state==='recording') cNoFrameRec.stop();
+    clearInterval(cRecTimerID);
     this.textContent='⏺ 録画開始';this.classList.remove('pri');
     document.getElementById('cProgWrap').classList.add('hidden');
     return;
   }
   cRecChunks=[];
+  cNoFrameVideoUrl=null;
+
+  // ===== 枠あり録画 =====
   var combined=new MediaStream();
   cpc.captureStream(30).getVideoTracks().forEach(function(t){combined.addTrack(t);});
   if(camAudioStream){camAudioStream.getAudioTracks().forEach(function(t){combined.addTrack(t);});}
@@ -928,7 +948,40 @@ document.getElementById('cRecBtn').onclick=function(){
     resSec.classList.remove('hidden');
     window.scrollTo({top:resSec.offsetTop-10,behavior:'smooth'});
   };
+
+  // ===== 枠なし録画（別canvasで並行） =====
+  var noFrameCanvas=document.createElement('canvas');
+  noFrameCanvas.width=cpc.width;noFrameCanvas.height=cpc.height;
+  var noFrameCtx=noFrameCanvas.getContext('2d');
+  var noFrameStream=new MediaStream();
+  noFrameCanvas.captureStream(30).getVideoTracks().forEach(function(t){noFrameStream.addTrack(t);});
+  if(camAudioStream){camAudioStream.getAudioTracks().forEach(function(t){noFrameStream.addTrack(t);});}
+  var noFrameChunks=[];
+  cNoFrameRec=new MediaRecorder(noFrameStream,{mimeType:mimeType});
+  cNoFrameRec.ondataavailable=function(e){if(e.data&&e.data.size>0)noFrameChunks.push(e.data);};
+  cNoFrameRec.onstop=function(){
+    var blob=new Blob(noFrameChunks,{type:mimeType});
+    cNoFrameVideoUrl=URL.createObjectURL(blob);
+  };
+
+  // 枠なしcanvasを毎フレーム更新するループ
+  var noFrameAnimId=null;
+  function noFrameLoop(){
+    var saved=cfImg;cfImg=null;
+    drawCamFrame(noFrameCtx,noFrameCanvas.width,noFrameCanvas.height);
+    cfImg=saved;
+    noFrameAnimId=requestAnimationFrame(noFrameLoop);
+  }
+  // MediaRecorder停止時にループも止める
+  var origStop=cMediaRec.onstop;
+  cMediaRec.onstop=function(){
+    cancelAnimationFrame(noFrameAnimId);
+    origStop.call(this);
+  };
+
   cMediaRec.start(100);
+  cNoFrameRec.start(100);
+  noFrameLoop();
   cRecStartTime=Date.now();
   var self=this;
   self.textContent='⏹ 録画停止';self.classList.add('pri');
@@ -996,7 +1049,7 @@ function renderPresets(){
     del.style.cssText='position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;border:none;background:var(--red);color:#fff;font-size:10px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;';
     del.onclick=function(e){
       e.stopPropagation();
-      var arr=loadPresets();arr.splice(i,1);savePresets(arr);renderPresets();
+      var arr=loadPresets();arr.splice(i,1);savePresets(arr);renderAllPresets();
     };
     wrap.appendChild(img);wrap.appendChild(del);
     list.appendChild(wrap);
@@ -1014,18 +1067,17 @@ document.getElementById('savePresetBtn').onclick=function(){
   var arr=loadPresets();
   arr.push({name:name,data:data});
   savePresets(arr);
-  renderPresets();
+  renderAllPresets();
   setSt('cStbox','プリセットに保存しました','done');
   setTimeout(function(){hideSt('cStbox');},1500);
 };
 
 // ページ読み込み時にプリセット表示
-renderPresets();
 
 // cfIn変更時にプリセット保存ボタンを有効化
 document.getElementById('cfIn').addEventListener('change',function(){
   document.getElementById('savePresetBtn').disabled=false;
-  renderPresets();
+  renderAllPresets();
 });
 
 // ===== 録画開始に合図音を追加 =====
@@ -1055,6 +1107,107 @@ document.getElementById('cSnapNoFrameBtn').onclick=function(){
   a.href=snap.toDataURL('image/png');
   a.click();
 };
+
+// ===== 写真・動画モードのプリセット =====
+
+// 写真モード: fImg をプリセットに適用するrenderPresets拡張版
+function renderPresetsFor(listId, areaId, onSelect){
+  var presets=loadPresets();
+  var list=document.getElementById(listId);
+  var area=document.getElementById(areaId);
+  if(!list||!area)return;
+  list.innerHTML='';
+  if(presets.length===0){area.style.display='none';return;}
+  area.style.display='block';
+  presets.forEach(function(p,i){
+    var wrap=document.createElement('div');
+    wrap.style.cssText='position:relative;cursor:pointer;';
+    var img=document.createElement('img');
+    img.src=p.data;
+    img.style.cssText='width:60px;height:60px;object-fit:contain;border-radius:6px;border:1.5px solid var(--border);background:var(--surface2);display:block;';
+    img.title=p.name;
+    img.onclick=function(){
+      var im=new Image();im.onload=function(){onSelect(im,p.data);};im.src=p.data;
+    };
+    var del=document.createElement('button');
+    del.textContent='×';
+    del.style.cssText='position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;border:none;background:var(--red);color:#fff;font-size:10px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;';
+    del.onclick=function(e){
+      e.stopPropagation();
+      var arr=loadPresets();arr.splice(i,1);savePresets(arr);
+      // 全モードのプリセット表示を更新
+      renderAllPresets();
+    };
+    wrap.appendChild(img);wrap.appendChild(del);
+    list.appendChild(wrap);
+  });
+}
+
+function renderAllPresets(){
+  // カメラモード
+  renderPresets();
+  // 写真モード
+  renderPresetsFor('pPresetList','pPresetArea',function(im,data){
+    fImg=im;markZone('fArea','n2',data);checkPhotoReady();
+    document.getElementById('pSavePresetBtn').disabled=false;
+  });
+  // 動画モード
+  renderPresetsFor('vPresetList','vPresetArea',function(im,data){
+    vfImg=im;markZone('vfArea','vn2',data);checkVideoReady();
+    document.getElementById('vSavePresetBtn').disabled=false;
+  });
+}
+
+// 写真モード プリセット保存ボタン
+document.getElementById('pSavePresetBtn').onclick=function(){
+  if(!fImg)return;
+  var tmp=document.createElement('canvas');
+  tmp.width=fImg.naturalWidth;tmp.height=fImg.naturalHeight;
+  tmp.getContext('2d').drawImage(fImg,0,0);
+  var data=tmp.toDataURL('image/png');
+  var arr=loadPresets();
+  arr.push({name:'枠'+(arr.length+1),data:data});
+  savePresets(arr);renderAllPresets();
+  setSt('cStbox','プリセットに保存しました','done');
+  setTimeout(function(){hideSt('cStbox');},1500);
+};
+
+// 動画モード プリセット保存ボタン
+document.getElementById('vSavePresetBtn').onclick=function(){
+  if(!vfImg)return;
+  var tmp=document.createElement('canvas');
+  tmp.width=vfImg.naturalWidth;tmp.height=vfImg.naturalHeight;
+  tmp.getContext('2d').drawImage(vfImg,0,0);
+  var data=tmp.toDataURL('image/png');
+  var arr=loadPresets();
+  arr.push({name:'枠'+(arr.length+1),data:data});
+  savePresets(arr);renderAllPresets();
+};
+
+// fIn/vfIn 変更時にプリセット保存ボタン有効化
+document.getElementById('fIn').addEventListener('change',function(){
+  document.getElementById('pSavePresetBtn').disabled=false;
+  renderAllPresets();
+});
+document.getElementById('vfIn').addEventListener('change',function(){
+  document.getElementById('vSavePresetBtn').disabled=false;
+  renderAllPresets();
+});
+
+// ページ読み込み時に全モードプリセット表示
+renderAllPresets();
+
+// ===== 枠なし動画保存 =====
+document.getElementById('cVideoNoFrameBtn').onclick=function(){
+  if(!cNoFrameVideoUrl){
+    alert('枠なし動画はまだ生成されていません。先に録画してください。');return;
+  }
+  var a=document.createElement('a');
+  a.download='cam_noframe_'+Date.now()+'.webm';
+  a.href=cNoFrameVideoUrl;a.click();
+};
+
+// ===== cSnapNoFrameBtn の古いハンドラを削除（ボタンIDが変わったため無害だが念のため） =====
 </script>
 </body>
 </html>
