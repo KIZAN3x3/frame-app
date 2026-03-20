@@ -184,8 +184,8 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
       <div class="cb">
         <p style="font-size:11px;color:var(--text2);margin-bottom:6px;">人物レイヤー</p>
         <div class="opts" id="vlOpts">
-          <div class="opt on" data-v="under">枠が前面</div>
-          <div class="opt" data-v="over">人物が前面</div>
+          <div class="opt on" data-v="frame-top">枠が前面</div>
+          <div class="opt" data-v="person-top">人物が前面</div>
         </div>
         <button class="go" id="vGoBtn" disabled>▶ プレビュー・合成開始</button>
       </div>
@@ -249,8 +249,8 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
         </div>
         <p style="font-size:11px;color:var(--text2);margin-bottom:6px;">人物レイヤー</p>
         <div class="opts" id="clOpts">
-          <div class="opt on" data-v="under">枠が前面</div>
-          <div class="opt" data-v="over">人物が前面</div>
+          <div class="opt on" data-v="frame-top">枠が前面</div>
+          <div class="opt" data-v="person-top">人物が前面</div>
         </div>
         <button class="go" id="cGoBtn" disabled>▶ カメラ起動</button>
         <div class="stbox" id="cStbox"></div>
@@ -411,13 +411,12 @@ document.getElementById('dlBtn').onclick=function(){var rc=document.getElementBy
 //  - AudioContext / createMediaElementSource は1度だけ生成してキャッシュ
 //  - videoEl.onended は addEventListener で管理し重複を避ける
 
-var vFile=null,vfImg=null,vLayer='under';
+var vFile=null,vfImg=null,vLayer='frame-top';
 var videoEl=document.getElementById('videoEl');
 var vpc=document.getElementById('vPreviewCanvas'); // 表示&録画共通 canvas
 var vpcCtx=vpc.getContext('2d');
 var vAnimFrame=null; // 動画モード専用raf
 var vMediaRec=null,vRecChunks=[];
-var vAudioCtx=null,vAudioSrc=null; // 再利用のためキャッシュ
 
 document.getElementById('vlOpts').addEventListener('click',function(e){
   var b=e.target.closest('.opt');if(!b)return;
@@ -432,8 +431,6 @@ document.getElementById('vIn').onchange=function(e){
   if(videoEl.src)URL.revokeObjectURL(videoEl.src);
   videoEl.src=URL.createObjectURL(f);
   videoEl.load();
-  // AudioContext キャッシュをリセット（新しい動画では再作成が必要）
-  vAudioCtx=null;vAudioSrc=null;
   markZone('vArea','vn1',null);
   checkVideoReady();
 };
@@ -446,7 +443,7 @@ function checkVideoReady(){document.getElementById('vGoBtn').disabled=!(vFile&&v
 // canvas に1フレーム合成描画（プレビュー・録画共用）
 function drawVideoFrame(ctx,w,h){
   ctx.clearRect(0,0,w,h);
-  if(vLayer==='under'){
+  if(vLayer==='frame-top'){
     // 枠が前面 → 動画を先に、枠を後から（上に）描く
     ctx.drawImage(videoEl,0,0,w,h);
     ctx.drawImage(vfImg,0,0,w,h);
@@ -502,21 +499,19 @@ document.getElementById('vRecBtn').onclick=function(){
 
   var cw=vpc.width,ch=vpc.height;
 
-  // captureStream は表示中の vPreviewCanvas から取る
-  var stream=vpc.captureStream(30);
-
-  // 音声トラックを追加（createMediaElementSource は videoEl につき1度だけ）
+  // canvas映像ストリーム + videoEl音声ストリームを合成
+  var videoStream=vpc.captureStream(30);
+  var stream=videoStream;
   try{
-    if(!vAudioCtx){
-      vAudioCtx=new (window.AudioContext||window.webkitAudioContext)();
-      vAudioSrc=vAudioCtx.createMediaElementSource(videoEl);
-      var vAudioDest=vAudioCtx.createMediaStreamDestination();
-      vAudioSrc.connect(vAudioDest);
-      vAudioSrc.connect(vAudioCtx.destination);
-      // dest を変数にキャッシュ
-      vAudioCtx._dest=vAudioDest;
+    // videoEl.captureStream() で音声トラックを直接取得（AudioContext不要）
+    var srcStream=videoEl.captureStream();
+    var audioTracks=srcStream.getAudioTracks();
+    if(audioTracks.length>0){
+      var combined=new MediaStream();
+      videoStream.getVideoTracks().forEach(function(t){combined.addTrack(t);});
+      audioTracks.forEach(function(t){combined.addTrack(t);});
+      stream=combined;
     }
-    vAudioCtx._dest.stream.getAudioTracks().forEach(function(t){stream.addTrack(t);});
   }catch(e){/* 音声なしで続行 */}
 
   var mimeType='video/webm;codecs=vp9';
@@ -574,7 +569,7 @@ document.getElementById('vRtBtn').onclick=function(){
 };
 
 // ===== カメラモード =====
-var cfImg=null,cLayer='under',camFacing='user';
+var cfImg=null,cLayer='frame-top',camFacing='user';
 var camStream=null;
 var camVideoEl=document.getElementById('camVideoEl');
 var cpc=document.getElementById('camPreviewCanvas');
@@ -626,7 +621,7 @@ document.getElementById('cGoBtn').onclick=async function(){
 
 function drawCamFrame(ctx,w,h){
   ctx.clearRect(0,0,w,h);
-  if(cLayer==='under'){
+  if(cLayer==='frame-top'){
     // 枠が前面 → カメラ映像を先に、枠を後から（上に）描く
     ctx.drawImage(camVideoEl,0,0,w,h);
     if(cfImg)ctx.drawImage(cfImg,0,0,w,h);
