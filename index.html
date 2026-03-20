@@ -13,8 +13,6 @@ header{padding:20px 0 14px;border-bottom:1px solid var(--border);margin-bottom:1
 header h1{font-size:17px;font-weight:700;}
 header h1 em{font-style:normal;color:var(--accent);}
 header p{font-size:11px;color:var(--text2);margin-top:2px;}
-.mbar{font-size:11px;text-align:center;padding:6px;color:var(--text2);background:var(--surface2);border-radius:var(--rs);margin-bottom:12px;}
-.mbar.ready{color:var(--green);}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:10px;}
 .ch{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px;}
 .num{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
@@ -29,28 +27,20 @@ input[type=file]{display:none;}
 .opts{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px;}
 .opt{flex:1;min-width:72px;padding:7px 6px;text-align:center;border:1px solid var(--border);border-radius:var(--rs);background:var(--surface2);color:var(--text2);font-size:11px;cursor:pointer;line-height:1.4;}
 .opt.on{border-color:var(--accent);color:var(--accent);background:rgba(232,119,46,0.1);}
-.go{width:100%;padding:15px;border:none;border-radius:var(--rs);background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:15px;font-weight:700;cursor:pointer;}
+.go{width:100%;padding:15px;border:none;border-radius:var(--rs);background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;}
 .go:disabled{opacity:.3;cursor:not-allowed;}
-.stbox{margin-top:9px;padding:9px 12px;border-radius:var(--rs);background:var(--surface2);font-size:12px;display:none;align-items:center;gap:8px;}
-.stbox.show{display:flex;}
-.stbox.loading{color:var(--accent2);}.stbox.done{color:var(--green);}.stbox.err{color:var(--red);}
-.spin{width:13px;height:13px;border-radius:50%;flex-shrink:0;border:2px solid rgba(245,166,35,.3);border-top-color:var(--accent2);animation:spin .8s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg);}}
-
-/* 調整エリア */
+.go:active{opacity:.85;}
 #adjCard{display:none;}
-.awrap{position:relative;border-radius:var(--rs);overflow:hidden;background:#111;width:100%;}
-.awrap canvas{display:block;width:100%;}
-#adjCanvas{display:block;width:100%;border-radius:var(--rs);}
-.hint{font-size:11px;color:var(--text2);text-align:center;margin-top:7px;line-height:1.6;}
+#adjCanvas{display:block;width:100%;border-radius:var(--rs);touch-action:none;}
+.hint{font-size:11px;color:var(--text2);text-align:center;margin-top:8px;line-height:1.7;}
 .aacts{display:flex;gap:8px;margin-top:10px;}
-.abtn{flex:1;padding:11px;border-radius:var(--rs);border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:13px;cursor:pointer;}
+.abtn{flex:1;padding:12px;border-radius:var(--rs);border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:13px;cursor:pointer;text-align:center;}
 .abtn.pri{border-color:var(--accent);color:var(--accent);background:rgba(232,119,46,.08);}
-
-/* 結果 */
+.abtn:active{opacity:.7;}
 #resCard{display:none;}
 #resCanvas{display:block;width:100%;border-radius:var(--rs);}
-.dlbtn{width:100%;margin-top:10px;padding:13px;border:1.5px solid var(--accent);border-radius:var(--rs);background:transparent;color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;}
+.dlbtn{width:100%;margin-top:10px;padding:14px;border:1.5px solid var(--accent);border-radius:var(--rs);background:transparent;color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;text-align:center;}
+.dlbtn:active{background:rgba(232,119,46,.1);}
 .rtbtn{width:100%;margin-top:8px;padding:11px;border:1px solid var(--border);border-radius:var(--rs);background:var(--surface2);color:var(--text2);font-size:13px;cursor:pointer;text-align:center;}
 </style>
 </head>
@@ -58,16 +48,15 @@ input[type=file]{display:none;}
 <div class="app">
   <header>
     <h1>フレーム<em>合成</em>アプリ</h1>
-    <p>AI顔検出 → 手動微調整 → SNS用ダウンロード</p>
+    <p>写真をアップロード → 位置調整 → SNS用ダウンロード</p>
   </header>
-  <div class="mbar" id="mbar">顔検出モデル読み込み中...</div>
 
   <div class="card">
     <div class="ch"><div class="num" id="n1">1</div><span class="ct">人物写真</span></div>
     <div class="cb">
       <div class="ua" id="pArea" onclick="document.getElementById('pIn').click()">
-        <span style="font-size:26px">📷</span>
-        <span style="font-size:13px;color:var(--text2)" id="pLbl">タップして写真を選択</span>
+        <span style="font-size:28px">📷</span>
+        <span style="font-size:13px;color:var(--text2)">タップして写真を選択</span>
         <span style="font-size:11px;color:var(--text2)">JPG / PNG / HEIC</span>
       </div>
       <input type="file" id="pIn" accept="image/*">
@@ -78,8 +67,8 @@ input[type=file]{display:none;}
     <div class="ch"><div class="num" id="n2">2</div><span class="ct">枠画像</span></div>
     <div class="cb">
       <div class="ua" id="fArea" onclick="document.getElementById('fIn').click()">
-        <span style="font-size:26px">🖼</span>
-        <span style="font-size:13px;color:var(--text2)" id="fLbl">タップして枠を選択（PNG推奨）</span>
+        <span style="font-size:28px">🖼</span>
+        <span style="font-size:13px;color:var(--text2)">タップして枠を選択（PNG推奨）</span>
         <span style="font-size:11px;color:var(--text2)">透過PNG対応</span>
       </div>
       <input type="file" id="fIn" accept="image/*">
@@ -87,7 +76,7 @@ input[type=file]{display:none;}
   </div>
 
   <div class="card">
-    <div class="ch"><div class="num" id="n3">3</div><span class="ct">設定して合成</span></div>
+    <div class="ch"><div class="num" id="n3">3</div><span class="ct">設定</span></div>
     <div class="cb">
       <p style="font-size:11px;color:var(--text2);margin-bottom:6px;">出力サイズ</p>
       <div class="opts" id="sOpts">
@@ -101,16 +90,18 @@ input[type=file]{display:none;}
         <div class="opt on" data-v="under">枠が前面</div>
         <div class="opt" data-v="over">人物が前面</div>
       </div>
-      <button class="go" id="goBtn" disabled>✨ AI検出して合成する</button>
-      <div class="stbox" id="stbox"></div>
+      <button class="go" id="goBtn" disabled>▶ 調整画面へ進む</button>
     </div>
   </div>
 
   <div class="card" id="adjCard">
-    <div class="ch"><div class="num" style="background:var(--accent2)">4</div><span class="ct">位置・サイズを微調整</span></div>
+    <div class="ch"><div class="num" style="background:var(--accent2)">4</div><span class="ct">位置・サイズを調整</span></div>
     <div class="cb">
       <canvas id="adjCanvas"></canvas>
-      <p class="hint">👆 ドラッグで移動　🤏 ピンチで拡大縮小<br>🖱 PCはドラッグ＋スクロールでズーム</p>
+      <p class="hint">
+        📱 スマホ：1本指でドラッグ移動 / 2本指でピンチ拡縮<br>
+        💻 PC：ドラッグで移動 / スクロールでズーム
+      </p>
       <div class="aacts">
         <button class="abtn" id="resetBtn">↩ リセット</button>
         <button class="abtn pri" id="applyBtn">✓ これで合成する</button>
@@ -129,32 +120,13 @@ input[type=file]{display:none;}
 </div>
 
 <script>
-var pImg=null,fImg=null,selSize='1080x1080',selLayer='under';
-var outW=1080,outH=1080;
+var pImg=null, fImg=null;
+var selSize='1080x1080', selLayer='under';
+var outW=1080, outH=1080;
 var adj={x:0,y:0,scale:1,bx:0,by:0,bs:1};
-var adjCanvas=document.getElementById('adjCanvas');
-var adjCtx=adjCanvas.getContext('2d');
-var modelsOk=false;
+var ac=document.getElementById('adjCanvas');
+var ctx=ac.getContext('2d');
 
-// face-api読み込み試行
-var MODEL_URL='https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights';
-var faceApiScript=document.createElement('script');
-faceApiScript.src='https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js';
-faceApiScript.onload=function(){
-  Promise.all([
-    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-    faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL)
-  ]).then(function(){
-    modelsOk=true;
-    var b=document.getElementById('mbar');
-    b.textContent='✓ 顔検出モデル準備完了';b.className='mbar ready';
-  }).catch(function(){
-    document.getElementById('mbar').textContent='⚠ モデル読み込み失敗（中央自動配置で動作）';
-  });
-};
-document.head.appendChild(faceApiScript);
-
-// オプション
 ['sOpts','lOpts'].forEach(function(id){
   document.getElementById(id).addEventListener('click',function(e){
     var b=e.target.closest('.opt');if(!b)return;
@@ -176,7 +148,8 @@ function markZone(aId,nId,img){
   var a=document.getElementById(aId);
   a.classList.add('loaded');a.innerHTML='';
   var el=document.createElement('img');el.src=img.src;el.style.maxHeight='90px';a.appendChild(el);
-  var t=document.createElement('span');t.style.cssText='font-size:11px;color:var(--green)';
+  var t=document.createElement('span');
+  t.style.cssText='font-size:11px;color:var(--green);margin-top:4px;';
   t.textContent='✓ 読み込み完了（タップで変更）';a.appendChild(t);
   document.getElementById(nId).classList.add('ok');
   checkReady();
@@ -184,163 +157,129 @@ function markZone(aId,nId,img){
 
 document.getElementById('pIn').onchange=async function(e){
   var f=e.target.files[0];if(!f)return;
-  pImg=await loadImg(f);markZone('pArea','n1',pImg);
+  pImg=await loadImg(f);
+  markZone('pArea','n1',pImg);
 };
 document.getElementById('fIn').onchange=async function(e){
   var f=e.target.files[0];if(!f)return;
-  fImg=await loadImg(f);markZone('fArea','n2',fImg);
+  fImg=await loadImg(f);
+  markZone('fArea','n2',fImg);
 };
 
-function checkReady(){document.getElementById('goBtn').disabled=!(pImg&&fImg);}
-
-function setSt(msg,type){
-  var el=document.getElementById('stbox');
-  el.className='stbox show '+(type||'');
-  el.innerHTML=type==='loading'?'<div class="spin"></div><span>'+msg+'</span>':'<span>'+(type==='done'?'✓':type==='err'?'✗':'')+'</span><span>'+msg+'</span>';
+function checkReady(){
+  document.getElementById('goBtn').disabled=!(pImg&&fImg);
 }
 
-async function detectCrop(){
-  var pw=pImg.naturalWidth,ph=pImg.naturalHeight;
-  if(modelsOk&&typeof faceapi!=='undefined'){
-    try{
-      var det=await faceapi.detectSingleFace(pImg,new faceapi.TinyFaceDetectorOptions({inputSize:416}));
-      if(det){
-        var b=det.box,fcx=b.x+b.width/2,fr=b.height/ph,ch,cw,cx,cy;
-        if(fr>0.22){ch=Math.min(ph,b.height*3.5);cw=ch*outW/outH;cx=fcx-cw/2;cy=b.y-b.height*0.5;}
-        else if(fr>0.1){ch=Math.min(ph,b.height*6);cw=ch*outW/outH;cx=fcx-cw/2;cy=b.y-b.height*0.7;}
-        else{ch=ph;cw=ch*outW/outH;cx=fcx-cw/2;cy=0;}
-        cx=Math.max(0,Math.min(cx,pw-cw));cy=Math.max(0,Math.min(cy,ph-ch));
-        return{x:cx,y:cy,w:Math.min(cw,pw-cx),h:Math.min(ch,ph-cy),method:'顔AI検出成功'};
-      }
-    }catch(e){}
-  }
-  var ratio=outW/outH,cw=pw,ch=cw/ratio;
-  if(ch>ph){ch=ph;cw=ch*ratio;}
-  return{x:(pw-cw)/2,y:ph*0.05,w:Math.min(cw,pw),h:Math.min(ch,ph),method:'中央自動配置'};
-}
-
-// canvasに描画
-function drawAdj(){
-  adjCtx.clearRect(0,0,adjCanvas.width,adjCanvas.height);
-  var pw=pImg.naturalWidth,ph=pImg.naturalHeight;
-  var dw=pw*adj.scale,dh=ph*adj.scale;
+function draw(){
+  ctx.clearRect(0,0,ac.width,ac.height);
+  var dw=pImg.naturalWidth*adj.scale;
+  var dh=pImg.naturalHeight*adj.scale;
   if(selLayer==='over'){
-    adjCtx.drawImage(pImg,adj.x,adj.y,dw,dh);
-    adjCtx.drawImage(fImg,0,0,adjCanvas.width,adjCanvas.height);
+    ctx.drawImage(fImg,0,0,ac.width,ac.height);
+    ctx.drawImage(pImg,adj.x,adj.y,dw,dh);
   }else{
-    adjCtx.drawImage(fImg,0,0,adjCanvas.width,adjCanvas.height);
-    adjCtx.drawImage(pImg,adj.x,adj.y,dw,dh);
+    ctx.drawImage(pImg,adj.x,adj.y,dw,dh);
+    ctx.drawImage(fImg,0,0,ac.width,ac.height);
   }
 }
 
-function setupAdj(crop){
-  // 出力サイズ確定
+function initAdj(){
   if(selSize==='auto'){outW=fImg.naturalWidth;outH=fImg.naturalHeight;}
   else{var p=selSize.split('x');outW=parseInt(p[0]);outH=parseInt(p[1]);}
 
-  // canvas解像度設定（表示は100%幅、内部は出力サイズ）
-  adjCanvas.width=outW;adjCanvas.height=outH;
+  ac.width=outW; ac.height=outH;
 
-  // cropから初期配置を計算
-  var fitScale=Math.max(outW/crop.w,outH/crop.h)*1.02;
-  var dw=pImg.naturalWidth*fitScale*(crop.w/pImg.naturalWidth);
-  // 実際は人物画像全体をfitScaleで配置し、cropが中央に来るようにオフセット
-  var pScale=fitScale*(outW/crop.w)/(outW/crop.w);
-  // シンプルに: cropエリアをoutW×outHにフィットさせるscale
-  var sc=Math.max(outW/crop.w,outH/crop.h);
-  var imgScale=sc/pImg.naturalWidth*crop.w; // これは誤り、正しく計算
-  // 人物画像のピクセルscale: crop.wをoutWに合わせる場合のscale = outW/crop.w
-  // でも人物画像全体に対しては crop.x,crop.y分オフセットが必要
-  var s=Math.max(outW/crop.w,outH/crop.h);
-  var ix=-crop.x*s+(outW-crop.w*s)/2;
-  var iy=-crop.y*s+(outH-crop.h*s)/2;
-
+  // 人物を画面中央に配置してフィット
+  var pw=pImg.naturalWidth, ph=pImg.naturalHeight;
+  var s=Math.max(outW/pw, outH/ph);
+  var ix=(outW-pw*s)/2;
+  var iy=(outH-ph*s)/2;
   adj={x:ix,y:iy,scale:s,bx:ix,by:iy,bs:s};
-  drawAdj();
+  draw();
 
   var card=document.getElementById('adjCard');
   card.style.display='';
+  document.getElementById('resCard').style.display='none';
+  setTimeout(function(){card.scrollIntoView({behavior:'smooth',block:'start'});},50);
   setupGesture();
-  setTimeout(function(){card.scrollIntoView({behavior:'smooth',block:'start'});},100);
 }
 
 function setupGesture(){
-  var c=adjCanvas;
-  var st=null,sa=null,md=false,ms=null,as2=null;
+  var st=null,sa=null,md=false,ms=null,mas=null;
 
-  c.addEventListener('touchstart',function(e){
+  ac.addEventListener('touchstart',function(e){
     e.preventDefault();
     st=Array.from(e.touches).map(function(t){return{x:t.clientX,y:t.clientY};});
-    sa=Object.assign({},adj);
+    sa={x:adj.x,y:adj.y,scale:adj.scale};
   },{passive:false});
 
-  c.addEventListener('touchmove',function(e){
+  ac.addEventListener('touchmove',function(e){
     e.preventDefault();
-    var ts=Array.from(e.touches).map(function(t){return{x:t.clientX,y:t.clientY};});
     if(!st||!sa)return;
-    if(ts.length===1&&st.length===1){
-      // canvasの表示倍率を考慮
-      var cr=c.getBoundingClientRect();
-      var scX=adjCanvas.width/cr.width;
-      adj.x=sa.x+(ts[0].x-st[0].x)*scX;
-      adj.y=sa.y+(ts[0].y-st[0].y)*scX;
-    }else if(ts.length>=2&&st.length>=2){
+    var ts=Array.from(e.touches).map(function(t){return{x:t.clientX,y:t.clientY};});
+    var cr=ac.getBoundingClientRect();
+    var ratio=ac.width/cr.width;
+
+    if(ts.length===1){
+      adj.x=sa.x+(ts[0].x-st[0].x)*ratio;
+      adj.y=sa.y+(ts[0].y-st[0].y)*ratio;
+    } else if(ts.length>=2){
       var d0=Math.hypot(st[1].x-st[0].x,st[1].y-st[0].y);
       var d1=Math.hypot(ts[1].x-ts[0].x,ts[1].y-ts[0].y);
       var r=d1/d0;
-      var cr=c.getBoundingClientRect();
-      var scX=adjCanvas.width/cr.width;
-      var cx=(st[0].x+st[1].x)/2-cr.left;
-      var cy=(st[0].y+st[1].y)/2-cr.top;
-      var lcx=cx*scX,lcy=cy*scX;
+      var cx=((st[0].x+st[1].x)/2-cr.left)*ratio;
+      var cy=((st[0].y+st[1].y)/2-cr.top)*ratio;
       adj.scale=sa.scale*r;
-      adj.x=lcx-(lcx-sa.x)*r;
-      adj.y=lcy-(lcy-sa.y)*r;
+      adj.x=cx-(cx-sa.x)*r;
+      adj.y=cy-(cy-sa.y)*r;
     }
-    drawAdj();
+    draw();
   },{passive:false});
 
-  c.addEventListener('touchend',function(){st=null;sa=null;});
+  ac.addEventListener('touchend',function(){st=null;sa=null;});
 
-  c.addEventListener('mousedown',function(e){
-    md=true;
-    var cr=c.getBoundingClientRect();
-    var scX=adjCanvas.width/cr.width;
-    ms={x:e.clientX*scX,y:e.clientY*scX};
-    as2=Object.assign({},adj);
+  ac.addEventListener('mousedown',function(e){
     e.preventDefault();
+    md=true;
+    var cr=ac.getBoundingClientRect();
+    var ratio=ac.width/cr.width;
+    ms={x:e.clientX,y:e.clientY};
+    mas={x:adj.x,y:adj.y,scale:adj.scale};
   });
   window.addEventListener('mousemove',function(e){
     if(!md)return;
-    var cr=c.getBoundingClientRect();
-    var scX=adjCanvas.width/cr.width;
-    adj.x=as2.x+(e.clientX-ms.x/scX)*scX;
-    adj.y=as2.y+(e.clientY-ms.y/scX)*scX;
-    drawAdj();
+    var cr=ac.getBoundingClientRect();
+    var ratio=ac.width/cr.width;
+    adj.x=mas.x+(e.clientX-ms.x)*ratio;
+    adj.y=mas.y+(e.clientY-ms.y)*ratio;
+    draw();
   });
   window.addEventListener('mouseup',function(){md=false;});
-  c.addEventListener('wheel',function(e){
+
+  ac.addEventListener('wheel',function(e){
     e.preventDefault();
     var d=e.deltaY>0?0.93:1.07;
-    var cr=c.getBoundingClientRect();
-    var scX=adjCanvas.width/cr.width;
-    var lx=(e.clientX-cr.left)*scX,ly=(e.clientY-cr.top)*scX;
-    adj.x=lx-(lx-adj.x)*d;adj.y=ly-(ly-adj.y)*d;adj.scale*=d;
-    drawAdj();
+    var cr=ac.getBoundingClientRect();
+    var ratio=ac.width/cr.width;
+    var lx=(e.clientX-cr.left)*ratio;
+    var ly=(e.clientY-cr.top)*ratio;
+    adj.x=lx-(lx-adj.x)*d;
+    adj.y=ly-(ly-adj.y)*d;
+    adj.scale*=d;
+    draw();
   },{passive:false});
 }
 
 document.getElementById('resetBtn').onclick=function(){
-  adj.x=adj.bx;adj.y=adj.by;adj.scale=adj.bs;drawAdj();
+  adj.x=adj.bx;adj.y=adj.by;adj.scale=adj.bs;draw();
 };
 
 document.getElementById('applyBtn').onclick=function(){
-  // 最終合成（adjCanvasの内容をそのまま使う）
   var rc=document.getElementById('resCanvas');
   rc.width=outW;rc.height=outH;
-  rc.getContext('2d').drawImage(adjCanvas,0,0);
+  rc.getContext('2d').drawImage(ac,0,0);
   document.getElementById('resCard').style.display='';
-  setTimeout(function(){document.getElementById('resCard').scrollIntoView({behavior:'smooth',block:'start'});},100);
+  setTimeout(function(){document.getElementById('resCard').scrollIntoView({behavior:'smooth',block:'start'});},50);
 };
 
 document.getElementById('rtBtn').onclick=function(){
@@ -356,20 +295,9 @@ document.getElementById('dlBtn').onclick=function(){
   a.click();
 };
 
-document.getElementById('goBtn').addEventListener('click',async function(){
-  var btn=this;btn.disabled=true;
-  document.getElementById('adjCard').style.display='none';
-  document.getElementById('resCard').style.display='none';
-  setSt('顔を検出中...','loading');
-  try{
-    if(selSize==='auto'){outW=fImg.naturalWidth;outH=fImg.naturalHeight;}
-    else{var p=selSize.split('x');outW=parseInt(p[0]);outH=parseInt(p[1]);}
-    var crop=await detectCrop();
-    setSt(crop.method+' — 下の調整画面で位置を合わせてください','done');
-    setupAdj(crop);
-  }catch(e){setSt('エラー: '+e.message,'err');}
-  btn.disabled=false;
-});
+document.getElementById('goBtn').onclick=function(){
+  initAdj();
+};
 </script>
 </body>
 </html>
