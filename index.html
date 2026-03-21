@@ -853,22 +853,6 @@ function drawCamFrame(ctx,w,h){
   }
 }
 
-// cAdjをclamp: 映像が常にcanvasを覆い、はみ出し移動も制限
-function clampCAdj(){
-  var ms=camMinScale();
-  if(cAdj.scale<ms) cAdj.scale=ms;
-  var vw=camVideoEl.videoWidth*cAdj.scale;
-  var vh=camVideoEl.videoHeight*cAdj.scale;
-  var w=cpc.width,h=cpc.height;
-  // 映像の左端がcanvas左端より右に来ないようにする（右側が空かない）
-  if(cAdj.x>0) cAdj.x=0;
-  // 映像の右端がcanvas右端より左に来ないようにする
-  if(cAdj.x+vw<w) cAdj.x=w-vw;
-  // 上下も同様
-  if(cAdj.y>0) cAdj.y=0;
-  if(cAdj.y+vh<h) cAdj.y=h-vh;
-}
-
 function setupCamGesture(){
   var st=null,sa=null,md=false,ms=null,mas=null;
   cpc.addEventListener('touchstart',function(e){
@@ -893,7 +877,6 @@ function setupCamGesture(){
       cAdj.x=cx-(cx-sa.x)*r;
       cAdj.y=cy-(cy-sa.y)*r;
     }
-    clampCAdj();
   },{passive:false});
   cpc.addEventListener('touchend',function(){st=null;sa=null;});
   cpc.addEventListener('mousedown',function(e){
@@ -905,7 +888,6 @@ function setupCamGesture(){
     var cr=cpc.getBoundingClientRect(),ratio=cpc.width/cr.width;
     cAdj.x=mas.x+(e.clientX-ms.x)*ratio;
     cAdj.y=mas.y+(e.clientY-ms.y)*ratio;
-    clampCAdj();
   });
   window.addEventListener('mouseup',function(){md=false;});
   cpc.addEventListener('wheel',function(e){
@@ -916,7 +898,6 @@ function setupCamGesture(){
     cAdj.x=lx-(lx-cAdj.x)*d;
     cAdj.y=ly-(ly-cAdj.y)*d;
     cAdj.scale*=d;
-    clampCAdj();
   },{passive:false});
 }
 
