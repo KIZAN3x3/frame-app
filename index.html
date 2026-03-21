@@ -1036,66 +1036,115 @@ var PRESET_KEY='frameapp_presets';
 function loadPresets(){
   try{return JSON.parse(localStorage.getItem(PRESET_KEY)||'[]');}catch(e){return [];}
 }
+
+// サムネを縮小してbase64サイズを抑える（localStorage容量対策）
+function imgToSmallDataURL(img){
+  var MAX=256; // サムネ最大辺
+  var w=img.naturalWidth,h=img.naturalHeight;
+  var scale=Math.min(1,MAX/Math.max(w,h));
+  var tw=Math.round(w*scale),th=Math.round(h*scale);
+  var c=document.createElement('canvas');
+  c.width=tw;c.height=th;
+  c.getContext('2d').drawImage(img,0,0,tw,th);
+  return c.toDataURL('image/png');
+}
+
+// オリジナルのdataURLをそのまま保存（表示・適用用）
+function imgToDataURL(img){
+  var c=document.createElement('canvas');
+  c.width=img.naturalWidth;c.height=img.naturalHeight;
+  c.getContext('2d').drawImage(img,0,0);
+  return c.toDataURL('image/png');
+}
+
 function savePresets(arr){
   try{
     localStorage.setItem(PRESET_KEY,JSON.stringify(arr));
   }catch(e){
-    showPresetToast('保存失敗: '+e.message);
+    // 容量オーバーなら古いものを1件削除して再試行
+    try{
+      arr.shift();
+      localStorage.setItem(PRESET_KEY,JSON.stringify(arr));
+      showPresetToast('容量のため最古のプリセットを削除しました');
+    }catch(e2){showPresetToast('保存失敗: ストレージ容量不足');}
   }
 }
 
-function renderPresets(){
+// 共通プリセット描画（3モード共通）
+function buildPresetItem(p, i, onSelect){
+  var wrap=document.createElement('div');
+  wrap.style.cssText='position:relative;cursor:pointer;';
+  var img=document.createElement('img');
+  img.src=p.thumb||p.data; // thumbがあればthumb、なければdata
+  img.style.cssText='width:60px;height:60px;object-fit:contain;border-radius:6px;border:1.5px solid var(--border);background:var(--surface2);display:block;';
+  img.title=p.name;
+  img.onclick=function(){
+    // 選択時はオリジナルdataを Image に読み込んで渡す
+    var im=new Image();
+    im.onload=function(){onSelect(im, p.data);};
+    im.src=p.data;
+  };
+  var del=document.createElement('button');
+  del.textContent='×';
+  del.style.cssText='position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;border:none;background:var(--red);color:#fff;font-size:10px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;';
+  del.onclick=function(e){
+    e.stopPropagation();
+    var arr=loadPresets();arr.splice(i,1);savePresets(arr);renderAllPresets();
+  };
+  wrap.appendChild(img);wrap.appendChild(del);
+  return wrap;
+}
+
+function renderOnePresetArea(listId, areaId, onSelect){
   var presets=loadPresets();
-  var list=document.getElementById('presetList');
-  var area=document.getElementById('presetArea');
+  var list=document.getElementById(listId);
+  var area=document.getElementById(areaId);
+  if(!list||!area)return;
   list.innerHTML='';
   if(presets.length===0){area.style.display='none';return;}
   area.style.display='block';
   presets.forEach(function(p,i){
-    var wrap=document.createElement('div');
-    wrap.style.cssText='position:relative;cursor:pointer;';
-    var img=document.createElement('img');
-    img.src=p.data;
-    img.style.cssText='width:60px;height:60px;object-fit:contain;border-radius:6px;border:1.5px solid var(--border);background:var(--surface2);display:block;';
-    img.title=p.name;
-    img.onclick=function(){
-      var im=new Image();im.onload=function(){
-        cfImg=im;
-        markZone('cfArea','cn1',p.data);
-        document.getElementById('cGoBtn').disabled=false;
-        document.getElementById('savePresetBtn').disabled=false;
-      };im.src=p.data;
-    };
-    var del=document.createElement('button');
-    del.textContent='×';
-    del.style.cssText='position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;border:none;background:var(--red);color:#fff;font-size:10px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;';
-    del.onclick=function(e){
-      e.stopPropagation();
-      var arr=loadPresets();arr.splice(i,1);savePresets(arr);renderAllPresets();
-    };
-    wrap.appendChild(img);wrap.appendChild(del);
-    list.appendChild(wrap);
+    list.appendChild(buildPresetItem(p,i,onSelect));
   });
 }
 
-document.getElementById('savePresetBtn').onclick=function(){
-  if(!cfImg)return;
-  var name='枠'+( loadPresets().length+1);
-  // dataURLに変換
-  var tmp=document.createElement('canvas');
-  tmp.width=cfImg.naturalWidth;tmp.height=cfImg.naturalHeight;
-  tmp.getContext('2d').drawImage(cfImg,0,0);
-  var data=tmp.toDataURL('image/png');
+function renderAllPresets(){
+  // カメラモード
+  renderOnePresetArea('presetList','presetArea',function(im,data){
+    cfImg=im;markZone('cfArea','cn1',data);
+    document.getElementById('cGoBtn').disabled=false;
+    document.getElementById('savePresetBtn').disabled=false;
+  });
+  // 写真モード
+  renderOnePresetArea('pPresetList','pPresetArea',function(im,data){
+    fImg=im;markZone('fArea','n2',data);checkPhotoReady();
+    document.getElementById('pSavePresetBtn').disabled=false;
+  });
+  // 動画モード
+  renderOnePresetArea('vPresetList','vPresetArea',function(im,data){
+    vfImg=im;markZone('vfArea','vn2',data);checkVideoReady();
+    document.getElementById('vSavePresetBtn').disabled=false;
+  });
+}
+
+// 共通: 枠画像をプリセットに追加
+function addToPresets(img, toastMsg){
+  var data=imgToDataURL(img);
+  var thumb=imgToSmallDataURL(img);
   var arr=loadPresets();
-  arr.push({name:name,data:data});
+  arr.push({name:'枠'+(arr.length+1), data:data, thumb:thumb});
   savePresets(arr);
   renderAllPresets();
-  showPresetToast('写真モード：プリセットに保存しました');
+  showPresetToast(toastMsg||'プリセットに保存しました');
+}
+
+// カメラモード 保存ボタン
+document.getElementById('savePresetBtn').onclick=function(){
+  if(!cfImg)return;
+  addToPresets(cfImg,'カメラモード：プリセットに保存しました');
 };
 
-// ページ読み込み時にプリセット表示
-
-// cfIn変更時にプリセット保存ボタンを有効化
+// cfIn変更時
 document.getElementById('cfIn').addEventListener('change',function(){
   document.getElementById('savePresetBtn').disabled=false;
   renderAllPresets();
@@ -1129,87 +1178,26 @@ document.getElementById('cSnapNoFrameBtn').onclick=function(){
   a.click();
 };
 
-// ===== 写真・動画モードのプリセット =====
 
-// 写真モード: fImg をプリセットに適用するrenderPresets拡張版
-function renderPresetsFor(listId, areaId, onSelect){
-  var presets=loadPresets();
-  var list=document.getElementById(listId);
-  var area=document.getElementById(areaId);
-  if(!list||!area)return;
-  list.innerHTML='';
-  if(presets.length===0){area.style.display='none';return;}
-  area.style.display='block';
-  presets.forEach(function(p,i){
-    var wrap=document.createElement('div');
-    wrap.style.cssText='position:relative;cursor:pointer;';
-    var img=document.createElement('img');
-    img.src=p.data;
-    img.style.cssText='width:60px;height:60px;object-fit:contain;border-radius:6px;border:1.5px solid var(--border);background:var(--surface2);display:block;';
-    img.title=p.name;
-    img.onclick=function(){
-      var im=new Image();im.onload=function(){onSelect(im,p.data);};im.src=p.data;
-    };
-    var del=document.createElement('button');
-    del.textContent='×';
-    del.style.cssText='position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;border:none;background:var(--red);color:#fff;font-size:10px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;';
-    del.onclick=function(e){
-      e.stopPropagation();
-      var arr=loadPresets();arr.splice(i,1);savePresets(arr);
-      // 全モードのプリセット表示を更新
-      renderAllPresets();
-    };
-    wrap.appendChild(img);wrap.appendChild(del);
-    list.appendChild(wrap);
-  });
-}
+// ===== 写真・動画モードの保存ボタン =====
 
-function renderAllPresets(){
-  // カメラモード
-  renderPresets();
-  // 写真モード
-  renderPresetsFor('pPresetList','pPresetArea',function(im,data){
-    fImg=im;markZone('fArea','n2',data);checkPhotoReady();
-    document.getElementById('pSavePresetBtn').disabled=false;
-  });
-  // 動画モード
-  renderPresetsFor('vPresetList','vPresetArea',function(im,data){
-    vfImg=im;markZone('vfArea','vn2',data);checkVideoReady();
-    document.getElementById('vSavePresetBtn').disabled=false;
-  });
-}
-
-// 写真モード プリセット保存ボタン
 document.getElementById('pSavePresetBtn').onclick=function(){
   if(!fImg)return;
-  var tmp=document.createElement('canvas');
-  tmp.width=fImg.naturalWidth;tmp.height=fImg.naturalHeight;
-  tmp.getContext('2d').drawImage(fImg,0,0);
-  var data=tmp.toDataURL('image/png');
-  var arr=loadPresets();
-  arr.push({name:'枠'+(arr.length+1),data:data});
-  savePresets(arr);renderAllPresets();
-  showPresetToast('写真モード：プリセットに保存しました');
+  addToPresets(fImg,'写真モード：プリセットに保存しました');
 };
 
-// 動画モード プリセット保存ボタン
 document.getElementById('vSavePresetBtn').onclick=function(){
   if(!vfImg)return;
-  var tmp=document.createElement('canvas');
-  tmp.width=vfImg.naturalWidth;tmp.height=vfImg.naturalHeight;
-  tmp.getContext('2d').drawImage(vfImg,0,0);
-  var data=tmp.toDataURL('image/png');
-  var arr=loadPresets();
-  arr.push({name:'枠'+(arr.length+1),data:data});
-  savePresets(arr);renderAllPresets();
-  showPresetToast('動画モード：プリセットに保存しました');
+  addToPresets(vfImg,'動画モード：プリセットに保存しました');
 };
 
-// fIn/vfIn 変更時にプリセット保存ボタン有効化
+// fIn変更時
 document.getElementById('fIn').addEventListener('change',function(){
   document.getElementById('pSavePresetBtn').disabled=false;
   renderAllPresets();
 });
+
+// vfIn変更時
 document.getElementById('vfIn').addEventListener('change',async function(e){
   var f=e.target.files[0];if(!f)return;
   vfImg=await loadImg(f);markZone('vfArea','vn2',vfImg.src);checkVideoReady();
@@ -1219,6 +1207,7 @@ document.getElementById('vfIn').addEventListener('change',async function(e){
 
 // ページ読み込み時に全モードプリセット表示
 renderAllPresets();
+
 
 // ===== 枠なし動画保存 =====
 document.getElementById('cVideoNoFrameBtn').onclick=function(){
