@@ -99,6 +99,18 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
           <span style="font-size:11px;color:var(--text2)">JPG / PNG / HEIC</span>
         </div>
         <input type="file" id="pIn" accept="image/*">
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <button class="abtn" id="pCamBtn" style="flex:1;font-size:12px;padding:10px;">📸 カメラで撮影</button>
+        </div>
+        <!-- カメラ撮影UI -->
+        <div id="pCamSection" style="display:none;margin-top:10px;">
+          <video id="pCamVideo" playsinline muted style="display:block;width:100%;border-radius:var(--rs);background:#000;"></video>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button class="abtn" id="pCamSwitchBtn" style="flex:1;">🔄 切替</button>
+            <button class="abtn pri" id="pCamShootBtn" style="flex:2;font-size:15px;">⬤ 撮影</button>
+            <button class="abtn" id="pCamCancelBtn" style="flex:1;">✕ 閉じる</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="card">
@@ -410,6 +422,65 @@ document.getElementById('pIn').onchange=async function(e){
 };
 
 function checkPhotoReady(){document.getElementById('goBtn').disabled=!(pImg&&fImg);}
+
+// ===== 写真モード カメラ撮影 =====
+var pCamStream=null,pCamFacing='user';
+
+async function pCamStart(){
+  var constraints=[
+    {video:{facingMode:{exact:pCamFacing},width:{ideal:4096},height:{ideal:4096}},audio:false},
+    {video:{facingMode:pCamFacing},audio:false},
+    {video:true,audio:false}
+  ];
+  if(pCamStream){pCamStream.getTracks().forEach(function(t){t.stop();});pCamStream=null;}
+  for(var i=0;i<constraints.length;i++){
+    try{pCamStream=await navigator.mediaDevices.getUserMedia(constraints[i]);break;}catch(e){}
+  }
+  if(!pCamStream)return;
+  var v=document.getElementById('pCamVideo');
+  v.srcObject=pCamStream;
+  v.play();
+  document.getElementById('pCamSection').style.display='block';
+}
+
+function pCamStop(){
+  if(pCamStream){pCamStream.getTracks().forEach(function(t){t.stop();});pCamStream=null;}
+  document.getElementById('pCamSection').style.display='none';
+  document.getElementById('pCamVideo').srcObject=null;
+}
+
+document.getElementById('pCamBtn').onclick=function(){pCamStart();};
+
+document.getElementById('pCamSwitchBtn').onclick=function(){
+  pCamFacing=(pCamFacing==='user')?'environment':'user';
+  pCamStart();
+};
+
+document.getElementById('pCamCancelBtn').onclick=function(){pCamStop();};
+
+document.getElementById('pCamShootBtn').onclick=function(){
+  var v=document.getElementById('pCamVideo');
+  if(!v.videoWidth)return;
+  // 高解像度でキャプチャ
+  var snap=document.createElement('canvas');
+  snap.width=v.videoWidth;snap.height=v.videoHeight;
+  var sctx=snap.getContext('2d');
+  // フロントカメラは左右反転
+  if(pCamFacing==='user'){
+    sctx.translate(snap.width,0);sctx.scale(-1,1);
+  }
+  sctx.drawImage(v,0,0);
+  var dataUrl=snap.toDataURL('image/png');
+  var im=new Image();
+  im.onload=function(){
+    pImg=im;
+    markZone('pArea','n1',dataUrl);
+    checkPhotoReady();
+    pCamStop();
+    showPresetToast('撮影しました！');
+  };
+  im.src=dataUrl;
+};
 function drawPhoto(){
   actx.clearRect(0,0,ac.width,ac.height);
   var dw=pImg.naturalWidth*adj.scale,dh=pImg.naturalHeight*adj.scale;
