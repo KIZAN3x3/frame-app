@@ -869,51 +869,30 @@ function drawCamFrame(ctx,w,h){
 }
 
 function setupCamGesture(){
-  var st=null,sa=null,md=false,ms=null,mas=null;
+  var ptDist=null, saScale=null;
   cpc.addEventListener('touchstart',function(e){
     e.preventDefault();
-    st=Array.from(e.touches).map(function(t){return{x:t.clientX,y:t.clientY};});
-    sa={x:cAdj.x,y:cAdj.y,scale:cAdj.scale};
-  },{passive:false});
-  cpc.addEventListener('touchmove',function(e){
-    e.preventDefault();if(!st||!sa)return;
-    var ts=Array.from(e.touches).map(function(t){return{x:t.clientX,y:t.clientY};});
-    var cr=cpc.getBoundingClientRect();
-    var vw=camVideoEl.videoWidth,vh=camVideoEl.videoHeight;
-    if(ts.length===1){
-      // ドラッグ: 画面上の移動量をソース映像座標に変換
-      var zoom=Math.max(1,sa.scale);
-      var cropAR=cpc.width/cpc.height,vidAR=vw/vh;
-      var cropW=(vidAR>cropAR)?(vh/zoom*cropAR):(vw/zoom);
-      var cropH=cropW/cropAR;
-      // 画面1pxあたりのソース映像ピクセル数
-      var ratioX=cropW/cr.width;
-      var ratioY=cropH/cr.height;
-      cAdj.x=sa.x-(ts[0].x-st[0].x)*ratioX;
-      cAdj.y=sa.y-(ts[0].y-st[0].y)*ratioY;
-    }else if(ts.length>=2&&st.length>=2){
-      var d0=Math.hypot(st[1].x-st[0].x,st[1].y-st[0].y);
-      var d1=Math.hypot(ts[1].x-ts[0].x,ts[1].y-ts[0].y);
-      cAdj.scale=Math.max(1,Math.min(sa.scale*(d1/d0),10));
+    if(e.touches.length===2){
+      ptDist=Math.hypot(
+        e.touches[1].clientX-e.touches[0].clientX,
+        e.touches[1].clientY-e.touches[0].clientY
+      );
+      saScale=cAdj.scale;
     }
   },{passive:false});
-  cpc.addEventListener('touchend',function(){st=null;sa=null;});
-  cpc.addEventListener('mousedown',function(e){
-    e.preventDefault();md=true;
-    ms={x:e.clientX,y:e.clientY};mas={x:cAdj.x,y:cAdj.y};
+  cpc.addEventListener('touchmove',function(e){
+    e.preventDefault();
+    if(e.touches.length===2&&ptDist!==null){
+      var d=Math.hypot(
+        e.touches[1].clientX-e.touches[0].clientX,
+        e.touches[1].clientY-e.touches[0].clientY
+      );
+      cAdj.scale=Math.max(1,Math.min(saScale*(d/ptDist),10));
+    }
+  },{passive:false});
+  cpc.addEventListener('touchend',function(e){
+    if(e.touches.length<2){ptDist=null;saScale=null;}
   });
-  window.addEventListener('mousemove',function(e){
-    if(!md)return;
-    var cr=cpc.getBoundingClientRect();
-    var vw=camVideoEl.videoWidth,vh=camVideoEl.videoHeight;
-    var zoom=Math.max(1,cAdj.scale);
-    var cropAR=cpc.width/cpc.height,vidAR=vw/vh;
-    var cropW=(vidAR>cropAR)?(vh/zoom*cropAR):(vw/zoom);
-    var cropH=cropW/cropAR;
-    cAdj.x=mas.x-(e.clientX-ms.x)*(cropW/cr.width);
-    cAdj.y=mas.y-(e.clientY-ms.y)*(cropH/cr.height);
-  });
-  window.addEventListener('mouseup',function(){md=false;});
   cpc.addEventListener('wheel',function(e){
     e.preventDefault();
     cAdj.scale=Math.max(1,Math.min(cAdj.scale*(e.deltaY>0?0.93:1.07),10));
