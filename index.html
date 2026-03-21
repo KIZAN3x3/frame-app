@@ -348,6 +348,8 @@ function switchTab(mode){
     var tid=m==='photo'?'tabPhoto':m==='video'?'tabVideo':'tabCamera';
     document.getElementById(tid).classList.toggle('on',m===mode);
   });
+  // タブ切替時にプリセット表示を更新（hidden解除後に再描画）
+  if(typeof renderAllPresets==='function') renderAllPresets();
   // iOSなら動画・カメラモードで警告を表示しコンテンツを隠す
   if(mode==='video'){
     document.getElementById('iosVideoWarn').classList.toggle('hidden',!isIOS);
@@ -508,10 +510,7 @@ function initAudioContext(){
     vAudioDestStream=dest.stream;
   }catch(ex){vAudioCtx=null;vAudioDestStream=null;}
 }
-document.getElementById('vfIn').onchange=async function(e){
-  var f=e.target.files[0];if(!f)return;
-  vfImg=await loadImg(f);markZone('vfArea','vn2',vfImg.src);checkVideoReady();
-};
+
 function checkVideoReady(){document.getElementById('vGoBtn').disabled=!(vFile&&vfImg);}
 
 // canvas に1フレーム合成描画（プレビュー・録画共用）
@@ -1038,7 +1037,11 @@ function loadPresets(){
   try{return JSON.parse(localStorage.getItem(PRESET_KEY)||'[]');}catch(e){return [];}
 }
 function savePresets(arr){
-  try{localStorage.setItem(PRESET_KEY,JSON.stringify(arr));}catch(e){}
+  try{
+    localStorage.setItem(PRESET_KEY,JSON.stringify(arr));
+  }catch(e){
+    showPresetToast('保存失敗: '+e.message);
+  }
 }
 
 function renderPresets(){
@@ -1207,7 +1210,9 @@ document.getElementById('fIn').addEventListener('change',function(){
   document.getElementById('pSavePresetBtn').disabled=false;
   renderAllPresets();
 });
-document.getElementById('vfIn').addEventListener('change',function(){
+document.getElementById('vfIn').addEventListener('change',async function(e){
+  var f=e.target.files[0];if(!f)return;
+  vfImg=await loadImg(f);markZone('vfArea','vn2',vfImg.src);checkVideoReady();
   document.getElementById('vSavePresetBtn').disabled=false;
   renderAllPresets();
 });
