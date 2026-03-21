@@ -806,8 +806,8 @@ document.getElementById('cSwitchBtn').onclick=function(){
   startCamera();
 };
 
+
 function resetCAdj(){
-  // scale=1（全体表示）、x/y=0（中央）
   cAdj={x:0,y:0,scale:1};
 }
 
@@ -817,16 +817,17 @@ function drawCamFrame(ctx,w,h){
   var vw=camVideoEl.videoWidth,vh=camVideoEl.videoHeight;
   if(vw===0||vh===0) return;
 
-  // ズーム: cAdj.scale を「クロップ率」として使う
-  // scale=1 → 全体表示、scale>1 → 拡大（中心付近をクロップ）
-  // クロップサイズ（ソース側）
-  var cropW=vw/cAdj.scale;
-  var cropH=vh/cAdj.scale;
-  // クロップ中心をcAdj.x/yで移動（ドラッグで構図調整）
-  // cAdj.x/y は -0.5〜0.5 の正規化オフセットとして使う
+  // coverに必要な最小スケール（映像がcanvasを常に覆う）
+  var baseS=Math.max(w/vw,h/vh);
+  // scale=1が最広角（coverぴったり）、>1でズームイン
+  var zoom=Math.max(1, cAdj.scale);
+  // クロップサイズ（ソース映像上の切り取り範囲）
+  var cropW=w/(baseS*zoom);
+  var cropH=h/(baseS*zoom);
+  // ドラッグオフセットをソース座標系で適用
   var cx=vw/2 - cAdj.x;
   var cy=vh/2 - cAdj.y;
-  // クロップ範囲がソース映像の外に出ないようにクランプ
+  // クロップ範囲をソース映像の外に出ないようクランプ
   var sx=Math.max(0, Math.min(vw-cropW, cx-cropW/2));
   var sy=Math.max(0, Math.min(vh-cropH, cy-cropH/2));
 
@@ -851,6 +852,7 @@ function drawCamFrame(ctx,w,h){
   }
 }
 
+
 function setupCamGesture(){
   var st=null,sa=null,md=false,ms=null,mas=null;
   cpc.addEventListener('touchstart',function(e){
@@ -863,9 +865,11 @@ function setupCamGesture(){
     var ts=Array.from(e.touches).map(function(t){return{x:t.clientX,y:t.clientY};});
     var cr=cpc.getBoundingClientRect();
     if(ts.length===1){
-      // ドラッグ: ピクセル移動をソース映像座標に換算
+      // ドラッグ: ソース映像上のクロップ範囲をずらす
       var vw=camVideoEl.videoWidth,vh=camVideoEl.videoHeight;
-      var cropW=vw/sa.scale,cropH=vh/sa.scale;
+      var baseS=Math.max(cpc.width/vw,cpc.height/vh);
+      var cropW=cpc.width/(baseS*Math.max(1,sa.scale));
+      var cropH=cpc.height/(baseS*Math.max(1,sa.scale));
       var dx=(ts[0].x-st[0].x)/cr.width*cropW;
       var dy=(ts[0].y-st[0].y)/cr.height*cropH;
       cAdj.x=sa.x+dx;
@@ -875,7 +879,7 @@ function setupCamGesture(){
       var d0=Math.hypot(st[1].x-st[0].x,st[1].y-st[0].y);
       var d1=Math.hypot(ts[1].x-ts[0].x,ts[1].y-ts[0].y);
       var r=d1/d0;
-      cAdj.scale=Math.max(0.2,Math.min(sa.scale*r,10));
+      cAdj.scale=Math.max(1,Math.min(sa.scale*r,10));
     }
   },{passive:false});
   cpc.addEventListener('touchend',function(){st=null;sa=null;});
@@ -886,9 +890,10 @@ function setupCamGesture(){
   window.addEventListener('mousemove',function(e){
     if(!md)return;
     var cr=cpc.getBoundingClientRect();
-    var vw=camVideoEl.videoWidth;
-    var vh=camVideoEl.videoHeight;
-    var cropW=vw/cAdj.scale,cropH=vh/cAdj.scale;
+    var vw=camVideoEl.videoWidth,vh=camVideoEl.videoHeight;
+    var baseS=Math.max(cpc.width/vw,cpc.height/vh);
+    var cropW=cpc.width/(baseS*Math.max(1,cAdj.scale));
+    var cropH=cpc.height/(baseS*Math.max(1,cAdj.scale));
     cAdj.x=mas.x+(e.clientX-ms.x)/cr.width*cropW;
     cAdj.y=mas.y+(e.clientY-ms.y)/cr.height*cropH;
   });
@@ -896,7 +901,7 @@ function setupCamGesture(){
   cpc.addEventListener('wheel',function(e){
     e.preventDefault();
     var d=e.deltaY>0?0.93:1.07;
-    cAdj.scale=Math.max(0.2,Math.min(cAdj.scale*d,10));
+    cAdj.scale=Math.max(1,Math.min(cAdj.scale*d,10));
   },{passive:false});
 }
 
