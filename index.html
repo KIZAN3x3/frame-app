@@ -601,8 +601,6 @@ document.getElementById('vGoBtn').onclick=function(){
     // canvasサイズは枠画像のオリジナルサイズ基準（枠比率を保持）
     vpc.width=vfImg.naturalWidth;
     vpc.height=vfImg.naturalHeight;
-    // CSSのアスペクト比を枠サイズに合わせる
-    vpc.style.aspectRatio=vpc.width+'/'+vpc.height;
     resetVAdj();
     videoEl.play();
     setupVideoGesture();
@@ -785,8 +783,6 @@ async function startCamera(){
   // 枠がない場合はカメラ映像サイズにフォールバック
   cpc.width=(cfImg&&cfImg.naturalWidth>0)?cfImg.naturalWidth:(camVideoEl.videoWidth||640);
   cpc.height=(cfImg&&cfImg.naturalHeight>0)?cfImg.naturalHeight:(camVideoEl.videoHeight||640);
-  // CSSのアスペクト比を枠サイズに合わせる（画面上での正しい比率表示）
-  cpc.style.aspectRatio=cpc.width+'/'+cpc.height;
   resetCAdj();
   hideSt('cStbox');
   startCamPreviewLoop();
@@ -827,11 +823,27 @@ function camMinScale(){
 
 function drawCamFrame(ctx,w,h){
   ctx.clearRect(0,0,w,h);
-  var vw=camVideoEl.videoWidth*cAdj.scale;
-  var vh=camVideoEl.videoHeight*cAdj.scale;
-  // フロントカメラ判定：deviceId方式でindex==0 or facingMode=='user'
   var isFront=(camDeviceIds.length===0)?(camFacing==='user'):(camDeviceIndex===0);
 
+  // 背景: カメラ映像をcanvas全体にcover表示（黒帯なし）
+  var bvw=camVideoEl.videoWidth,bvh=camVideoEl.videoHeight;
+  if(bvw>0&&bvh>0){
+    var bs=Math.max(w/bvw,h/bvh);
+    var bx=(w-bvw*bs)/2,by=(h-bvh*bs)/2;
+    if(isFront){
+      ctx.save();
+      ctx.translate(bx+bvw*bs,by);
+      ctx.scale(-1,1);
+      ctx.drawImage(camVideoEl,0,0,bvw*bs,bvh*bs);
+      ctx.restore();
+    }else{
+      ctx.drawImage(camVideoEl,bx,by,bvw*bs,bvh*bs);
+    }
+  }
+
+  // 前面: cAdjで調整した映像
+  var vw=camVideoEl.videoWidth*cAdj.scale;
+  var vh=camVideoEl.videoHeight*cAdj.scale;
   function drawVideo(){
     if(isFront){
       ctx.save();
