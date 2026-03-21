@@ -808,6 +808,8 @@ document.getElementById('cSwitchBtn').onclick=function(){
 
 
 function resetCAdj(){
+  // scale=1: 最広角（映像がcanvasをcoverする最小ズーム）
+  // x=0,y=0: 中央
   cAdj={x:0,y:0,scale:1};
 }
 
@@ -817,19 +819,33 @@ function drawCamFrame(ctx,w,h){
   var vw=camVideoEl.videoWidth,vh=camVideoEl.videoHeight;
   if(vw===0||vh===0) return;
 
-  // coverに必要な最小スケール（映像がcanvasを常に覆う）
-  var baseS=Math.max(w/vw,h/vh);
-  // scale=1が最広角（coverぴったり）、>1でズームイン
-  var zoom=Math.max(1, cAdj.scale);
-  // クロップサイズ（ソース映像上の切り取り範囲）
-  var cropW=w/(baseS*zoom);
-  var cropH=h/(baseS*zoom);
-  // ドラッグオフセットをソース座標系で適用
-  var cx=vw/2 - cAdj.x;
-  var cy=vh/2 - cAdj.y;
-  // クロップ範囲をソース映像の外に出ないようクランプ
-  var sx=Math.max(0, Math.min(vw-cropW, cx-cropW/2));
-  var sy=Math.max(0, Math.min(vh-cropH, cy-cropH/2));
+  // ---- クロップ計算 ----
+  // canvasのアスペクト比に合わせてカメラ映像をcoverクロップする
+  // カメラ映像のアスペクト比を保ったまま、canvasを常に埋める
+
+  // canvas比率に合わせたクロップサイズ（zoom=1が最広角cover）
+  var zoom = Math.max(1, cAdj.scale);
+
+  // coverクロップのベースサイズ（映像からcanvas比率で切り出す）
+  var cropAR = w / h; // canvasのアスペクト比
+  var vidAR  = vw / vh; // カメラ映像のアスペクト比
+  var cropW, cropH;
+  if(vidAR > cropAR){
+    // 映像が横長 → 高さに合わせてクロップ
+    cropH = vh / zoom;
+    cropW = cropH * cropAR;
+  } else {
+    // 映像が縦長または同比 → 幅に合わせてクロップ
+    cropW = vw / zoom;
+    cropH = cropW / cropAR;
+  }
+
+  // ドラッグオフセット（cAdj.x/y はソース座標のオフセットピクセル）
+  var cx = vw/2 - cAdj.x;
+  var cy = vh/2 - cAdj.y;
+  // クロップ範囲を映像の外に出ないようクランプ
+  var sx = Math.max(0, Math.min(vw - cropW, cx - cropW/2));
+  var sy = Math.max(0, Math.min(vh - cropH, cy - cropH/2));
 
   function drawVideo(){
     if(isFront){
@@ -852,7 +868,6 @@ function drawCamFrame(ctx,w,h){
   }
 }
 
-
 function setupCamGesture(){
   var st=null,sa=null,md=false,ms=null,mas=null;
   cpc.addEventListener('touchstart',function(e){
@@ -864,22 +879,22 @@ function setupCamGesture(){
     e.preventDefault();if(!st||!sa)return;
     var ts=Array.from(e.touches).map(function(t){return{x:t.clientX,y:t.clientY};});
     var cr=cpc.getBoundingClientRect();
+    var vw=camVideoEl.videoWidth,vh=camVideoEl.videoHeight;
     if(ts.length===1){
-      // ドラッグ: ソース映像上のクロップ範囲をずらす
-      var vw=camVideoEl.videoWidth,vh=camVideoEl.videoHeight;
-      var baseS=Math.max(cpc.width/vw,cpc.height/vh);
-      var cropW=cpc.width/(baseS*Math.max(1,sa.scale));
-      var cropH=cpc.height/(baseS*Math.max(1,sa.scale));
-      var dx=(ts[0].x-st[0].x)/cr.width*cropW;
-      var dy=(ts[0].y-st[0].y)/cr.height*cropH;
-      cAdj.x=sa.x+dx;
-      cAdj.y=sa.y+dy;
+      // ドラッグ: 画面上の移動量をソース映像座標に変換
+      var zoom=Math.max(1,sa.scale);
+      var cropAR=cpc.width/cpc.height,vidAR=vw/vh;
+      var cropW=(vidAR>cropAR)?(vh/zoom*cropAR):(vw/zoom);
+      var cropH=cropW/cropAR;
+      // 画面1pxあたりのソース映像ピクセル数
+      var ratioX=cropW/cr.width;
+      var ratioY=cropH/cr.height;
+      cAdj.x=sa.x-(ts[0].x-st[0].x)*ratioX;
+      cAdj.y=sa.y-(ts[0].y-st[0].y)*ratioY;
     }else if(ts.length>=2&&st.length>=2){
-      // ピンチ: 指の距離比でscale変更
       var d0=Math.hypot(st[1].x-st[0].x,st[1].y-st[0].y);
       var d1=Math.hypot(ts[1].x-ts[0].x,ts[1].y-ts[0].y);
-      var r=d1/d0;
-      cAdj.scale=Math.max(1,Math.min(sa.scale*r,10));
+      cAdj.scale=Math.max(1,Math.min(sa.scale*(d1/d0),10));
     }
   },{passive:false});
   cpc.addEventListener('touchend',function(){st=null;sa=null;});
@@ -891,19 +906,20 @@ function setupCamGesture(){
     if(!md)return;
     var cr=cpc.getBoundingClientRect();
     var vw=camVideoEl.videoWidth,vh=camVideoEl.videoHeight;
-    var baseS=Math.max(cpc.width/vw,cpc.height/vh);
-    var cropW=cpc.width/(baseS*Math.max(1,cAdj.scale));
-    var cropH=cpc.height/(baseS*Math.max(1,cAdj.scale));
-    cAdj.x=mas.x+(e.clientX-ms.x)/cr.width*cropW;
-    cAdj.y=mas.y+(e.clientY-ms.y)/cr.height*cropH;
+    var zoom=Math.max(1,cAdj.scale);
+    var cropAR=cpc.width/cpc.height,vidAR=vw/vh;
+    var cropW=(vidAR>cropAR)?(vh/zoom*cropAR):(vw/zoom);
+    var cropH=cropW/cropAR;
+    cAdj.x=mas.x-(e.clientX-ms.x)*(cropW/cr.width);
+    cAdj.y=mas.y-(e.clientY-ms.y)*(cropH/cr.height);
   });
   window.addEventListener('mouseup',function(){md=false;});
   cpc.addEventListener('wheel',function(e){
     e.preventDefault();
-    var d=e.deltaY>0?0.93:1.07;
-    cAdj.scale=Math.max(1,Math.min(cAdj.scale*d,10));
+    cAdj.scale=Math.max(1,Math.min(cAdj.scale*(e.deltaY>0?0.93:1.07),10));
   },{passive:false});
 }
+
 
 function startCamPreviewLoop(){
   if(cAnimFrame)cancelAnimationFrame(cAnimFrame);
