@@ -110,7 +110,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
           <span style="font-size:11px;color:var(--text2)">透過PNG対応</span>
         </div>
         <input type="file" id="fIn" accept="image/*">
-        <div id="pPresetArea" class="hidden" style="margin-top:10px;">
+        <div id="pPresetArea" style="margin-top:10px;display:none;">
           <p style="font-size:11px;color:var(--text2);margin-bottom:6px;">保存済みプリセット</p>
           <div id="pPresetList" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
         </div>
@@ -196,7 +196,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
           <span style="font-size:11px;color:var(--text2)">透過PNG対応</span>
         </div>
         <input type="file" id="vfIn" accept="image/*">
-        <div id="vPresetArea" class="hidden" style="margin-top:10px;">
+        <div id="vPresetArea" style="margin-top:10px;display:none;">
           <p style="font-size:11px;color:var(--text2);margin-bottom:6px;">保存済みプリセット</p>
           <div id="vPresetList" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
         </div>
@@ -278,7 +278,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
         </div>
         <input type="file" id="cfIn" accept="image/*">
         <!-- プリセット一覧 -->
-        <div id="presetArea" class="hidden" style="margin-top:10px;">
+        <div id="presetArea" style="margin-top:10px;display:none;">
           <p style="font-size:11px;color:var(--text2);margin-bottom:6px;">保存済みプリセット</p>
           <div id="presetList" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
         </div>
@@ -1097,8 +1097,8 @@ function renderOnePresetArea(listId, areaId, onSelect){
   var area=document.getElementById(areaId);
   if(!list||!area)return;
   list.innerHTML='';
-  if(presets.length===0){area.classList.add('hidden');return;}
-  area.classList.remove('hidden');
+  if(presets.length===0){area.style.display='none';return;}
+  area.style.display='block';
   presets.forEach(function(p,i){
     list.appendChild(buildPresetItem(p,i,onSelect));
   });
@@ -1159,20 +1159,7 @@ document.getElementById('cfIn').addEventListener('change',function(){
   };
 })();
 
-// ===== 枠なしスナップショット =====
-document.getElementById('cSnapNoFrameBtn').onclick=function(){
-  var snap=document.createElement('canvas');
-  snap.width=cpc.width;snap.height=cpc.height;
-  var ctx=snap.getContext('2d');
-  // 枠なしで映像だけ描画（drawCamFrameのcfImgを一時的にnullに）
-  var saved=cfImg;cfImg=null;
-  drawCamFrame(ctx,snap.width,snap.height);
-  cfImg=saved;
-  var a=document.createElement('a');
-  a.download='cam_noframe_snap_'+Date.now()+'.png';
-  a.href=snap.toDataURL('image/png');
-  a.click();
-};
+// 枠なし動画はcVideoNoFrameBtnで処理
 
 
 // ===== 写真・動画モードの保存ボタン =====
@@ -1222,7 +1209,7 @@ document.getElementById('cVideoNoFrameBtn').onclick=function(){
   a.href=cNoFrameVideoUrl;a.click();
 };
 
-// ===== cSnapNoFrameBtn の古いハンドラを削除（ボタンIDが変わったため無害だが念のため） =====
+
 </script>
 </body>
 </html>
