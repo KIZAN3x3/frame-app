@@ -50,7 +50,7 @@ input[type=file]{display:none;}
 /* 動画・カメラ共通プレビュー */
 .video-preview-wrap{position:relative;width:100%;border-radius:var(--rs);overflow:hidden;background:#000;}
 /* プレビュー用 canvas（1枚で全部描く） */
-.preview-canvas{display:block;width:100%;border-radius:var(--rs);}
+.preview-canvas{display:block;width:100%;height:auto;border-radius:var(--rs);}
 /* 隠し video 要素（描画ソースとして使う） */
 .src-video{display:none;}
 .prog-wrap{margin-top:8px;}
@@ -601,6 +601,8 @@ document.getElementById('vGoBtn').onclick=function(){
     // canvasサイズは枠画像のオリジナルサイズ基準（枠比率を保持）
     vpc.width=vfImg.naturalWidth;
     vpc.height=vfImg.naturalHeight;
+    // CSSのアスペクト比を枠サイズに合わせる
+    vpc.style.aspectRatio=vpc.width+'/'+vpc.height;
     resetVAdj();
     videoEl.play();
     setupVideoGesture();
@@ -783,6 +785,8 @@ async function startCamera(){
   // 枠がない場合はカメラ映像サイズにフォールバック
   cpc.width=(cfImg&&cfImg.naturalWidth>0)?cfImg.naturalWidth:(camVideoEl.videoWidth||640);
   cpc.height=(cfImg&&cfImg.naturalHeight>0)?cfImg.naturalHeight:(camVideoEl.videoHeight||640);
+  // CSSのアスペクト比を枠サイズに合わせる（画面上での正しい比率表示）
+  cpc.style.aspectRatio=cpc.width+'/'+cpc.height;
   resetCAdj();
   hideSt('cStbox');
   startCamPreviewLoop();
@@ -809,9 +813,16 @@ document.getElementById('cSwitchBtn').onclick=function(){
 function resetCAdj(){
   var w=cpc.width,h=cpc.height;
   var vw=camVideoEl.videoWidth||w,vh=camVideoEl.videoHeight||h;
-  // アスペクト比を保ってcanvas内にフィット（contain）
-  var s=Math.min(w/vw,h/vh);
+  // canvas全体を覆うスケール（cover）
+  var s=Math.max(w/vw,h/vh);
   cAdj={x:(w-vw*s)/2,y:(h-vh*s)/2,scale:s};
+}
+
+// カメラ映像がcanvasを常に覆う最小スケールを返す
+function camMinScale(){
+  var w=cpc.width,h=cpc.height;
+  var vw=camVideoEl.videoWidth||w,vh=camVideoEl.videoHeight||h;
+  return Math.max(w/vw,h/vh);
 }
 
 function drawCamFrame(ctx,w,h){
@@ -842,6 +853,22 @@ function drawCamFrame(ctx,w,h){
   }
 }
 
+// cAdjをclamp: 映像が常にcanvasを覆い、はみ出し移動も制限
+function clampCAdj(){
+  var ms=camMinScale();
+  if(cAdj.scale<ms) cAdj.scale=ms;
+  var vw=camVideoEl.videoWidth*cAdj.scale;
+  var vh=camVideoEl.videoHeight*cAdj.scale;
+  var w=cpc.width,h=cpc.height;
+  // 映像の左端がcanvas左端より右に来ないようにする（右側が空かない）
+  if(cAdj.x>0) cAdj.x=0;
+  // 映像の右端がcanvas右端より左に来ないようにする
+  if(cAdj.x+vw<w) cAdj.x=w-vw;
+  // 上下も同様
+  if(cAdj.y>0) cAdj.y=0;
+  if(cAdj.y+vh<h) cAdj.y=h-vh;
+}
+
 function setupCamGesture(){
   var st=null,sa=null,md=false,ms=null,mas=null;
   cpc.addEventListener('touchstart',function(e){
@@ -866,6 +893,7 @@ function setupCamGesture(){
       cAdj.x=cx-(cx-sa.x)*r;
       cAdj.y=cy-(cy-sa.y)*r;
     }
+    clampCAdj();
   },{passive:false});
   cpc.addEventListener('touchend',function(){st=null;sa=null;});
   cpc.addEventListener('mousedown',function(e){
@@ -877,6 +905,7 @@ function setupCamGesture(){
     var cr=cpc.getBoundingClientRect(),ratio=cpc.width/cr.width;
     cAdj.x=mas.x+(e.clientX-ms.x)*ratio;
     cAdj.y=mas.y+(e.clientY-ms.y)*ratio;
+    clampCAdj();
   });
   window.addEventListener('mouseup',function(){md=false;});
   cpc.addEventListener('wheel',function(e){
@@ -887,6 +916,7 @@ function setupCamGesture(){
     cAdj.x=lx-(lx-cAdj.x)*d;
     cAdj.y=ly-(ly-cAdj.y)*d;
     cAdj.scale*=d;
+    clampCAdj();
   },{passive:false});
 }
 
