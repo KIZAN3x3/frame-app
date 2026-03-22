@@ -170,7 +170,13 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
         <div class="ch"><div class="num" style="background:var(--accent2)">4</div><span class="ct">位置・サイズを調整</span></div>
         <div class="cb">
           <canvas id="adjCanvas"></canvas>
-          <p class="hint">📱 1本指ドラッグで移動 / 2本指ピンチで拡縮<br>💻 ドラッグで移動 / スクロールでズーム</p>
+          <div id="adjTargetWrap" style="display:none;margin-bottom:8px;">
+            <div style="display:flex;gap:6px;">
+              <button class="abtn on" id="adjTargetPhoto" style="flex:1;border-color:var(--accent);color:var(--accent);background:rgba(232,119,46,.1);">📷 写真を操作</button>
+              <button class="abtn" id="adjTargetStamp" style="flex:1;">🎨 スタンプを操作</button>
+            </div>
+          </div>
+          <p class="hint" id="adjHint">📱 1本指ドラッグで移動 / 2本指ピンチで拡縮<br>💻 ドラッグで移動 / スクロールでズーム</p>
           <div class="aacts">
             <button class="abtn" id="resetBtn">↩ リセット</button>
             <button class="abtn pri" id="applyBtn">✓ これで合成する</button>
@@ -378,6 +384,14 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
       </div>
     </div>
 
+    <!-- 録画一覧 -->
+    <div id="cHistorySection" style="display:none;">
+      <div class="card">
+        <div class="ch"><div class="num" style="background:var(--text2)">📋</div><span class="ct">録画一覧（このセッション中）</span></div>
+        <div class="cb" id="cHistoryList" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+    </div>
+
     <div id="cResSection" class="hidden">
       <div class="card">
         <div class="ch"><div class="num ok">✓</div><span class="ct">録画完了！</span></div>
@@ -468,6 +482,20 @@ document.getElementById('pIn').onchange=async function(e){
 
 function checkPhotoReady(){document.getElementById('goBtn').disabled=!(pImg&&fImg);}
 
+// 操作対象切替ボタン
+document.getElementById('adjTargetPhoto').onclick=function(){
+  adjTarget='photo';
+  this.style.cssText='flex:1;border-color:var(--accent);color:var(--accent);background:rgba(232,119,46,.1);';
+  document.getElementById('adjTargetStamp').style.cssText='flex:1;';
+  document.getElementById('adjHint').textContent='📷 写真を操作中：ドラッグで移動 / ピンチで拡縮';
+};
+document.getElementById('adjTargetStamp').onclick=function(){
+  adjTarget='stamp';
+  this.style.cssText='flex:1;border-color:var(--accent);color:var(--accent);background:rgba(232,119,46,.1);';
+  document.getElementById('adjTargetPhoto').style.cssText='flex:1;';
+  document.getElementById('adjHint').textContent='🎨 スタンプを操作中：ドラッグで移動 / ピンチで拡縮';
+};
+
 // ===== 写真モード カメラ撮影 =====
 var pCamStream=null,pCamFacing='user';
 
@@ -526,11 +554,25 @@ document.getElementById('pCamShootBtn').onclick=function(){
   };
   im.src=dataUrl;
 };
+// スタンプの位置・サイズ管理
+var sAdj={x:0,y:0,scale:1};
+var adjTarget='photo'; // 'photo' or 'stamp'
+
 function drawPhoto(){
   actx.clearRect(0,0,ac.width,ac.height);
   var dw=pImg.naturalWidth*adj.scale,dh=pImg.naturalHeight*adj.scale;
-  if(selLayer==='over'){actx.drawImage(fImg,0,0,ac.width,ac.height);actx.drawImage(pImg,adj.x,adj.y,dw,dh);}
-  else{actx.drawImage(pImg,adj.x,adj.y,dw,dh);actx.drawImage(fImg,0,0,ac.width,ac.height);}
+  if(selLayer==='over'){
+    actx.drawImage(fImg,0,0,ac.width,ac.height);
+    actx.drawImage(pImg,adj.x,adj.y,dw,dh);
+  }else{
+    actx.drawImage(pImg,adj.x,adj.y,dw,dh);
+    actx.drawImage(fImg,0,0,ac.width,ac.height);
+  }
+  // スタンプを最前面に（位置・サイズ調整あり）
+  if(sImg){
+    var sw=sImg.naturalWidth*sAdj.scale,sh=sImg.naturalHeight*sAdj.scale;
+    actx.drawImage(sImg,sAdj.x,sAdj.y,sw,sh);
+  }
 }
 document.getElementById('goBtn').onclick=function(){
   if(selSize==='auto'){outW=fImg.naturalWidth;outH=fImg.naturalHeight;}
@@ -539,6 +581,16 @@ document.getElementById('goBtn').onclick=function(){
   var s=Math.max(outW/pImg.naturalWidth,outH/pImg.naturalHeight);
   var ix=(outW-pImg.naturalWidth*s)/2,iy=(outH-pImg.naturalHeight*s)/2;
   adj={x:ix,y:iy,scale:s,bx:ix,by:iy,bs:s};
+  // スタンプ初期位置（canvasの右下1/4サイズ）
+  if(sImg){
+    var ss=0.3;
+    sAdj={x:outW*0.65,y:outH*0.65,scale:Math.min(outW,outH)*ss/Math.max(sImg.naturalWidth,sImg.naturalHeight)};
+  }
+  adjTarget='photo';
+  // 切替ボタン表示（スタンプがある時のみ）
+  document.getElementById('adjTargetWrap').style.display=sImg?'block':'none';
+  document.getElementById('adjTargetPhoto').style.cssText='flex:1;border-color:var(--accent);color:var(--accent);background:rgba(232,119,46,.1);';
+  document.getElementById('adjTargetStamp').style.cssText='flex:1;';
   drawPhoto();
   var adjSec=document.getElementById('adjSection');
   adjSec.classList.remove('hidden');
@@ -546,28 +598,64 @@ document.getElementById('goBtn').onclick=function(){
   if(!gestureSetup){setupPhotoGesture();gestureSetup=true;}
   window.scrollTo({top:adjSec.offsetTop-10,behavior:'smooth'});
 };
+function getCurAdj(){return adjTarget==='stamp'?sAdj:adj;}
+function setCurAdj(v){if(adjTarget==='stamp'){sAdj=v;}else{adj=v;}}
+
 function setupPhotoGesture(){
   var st=null,sa=null,md=false,ms=null,mas=null;
-  ac.addEventListener('touchstart',function(e){e.preventDefault();st=Array.from(e.touches).map(function(t){return{x:t.clientX,y:t.clientY};});sa={x:adj.x,y:adj.y,scale:adj.scale};},{passive:false});
+  ac.addEventListener('touchstart',function(e){
+    e.preventDefault();
+    st=Array.from(e.touches).map(function(t){return{x:t.clientX,y:t.clientY};});
+    var cur=getCurAdj();sa={x:cur.x,y:cur.y,scale:cur.scale};
+  },{passive:false});
   ac.addEventListener('touchmove',function(e){
     e.preventDefault();if(!st||!sa)return;
     var ts=Array.from(e.touches).map(function(t){return{x:t.clientX,y:t.clientY};});
     var cr=ac.getBoundingClientRect(),ratio=outW/cr.width;
-    if(ts.length===1){adj.x=sa.x+(ts[0].x-st[0].x)*ratio;adj.y=sa.y+(ts[0].y-st[0].y)*ratio;}
-    else if(ts.length>=2&&st.length>=2){
+    var cur=getCurAdj();
+    if(ts.length===1){
+      cur.x=sa.x+(ts[0].x-st[0].x)*ratio;
+      cur.y=sa.y+(ts[0].y-st[0].y)*ratio;
+    }else if(ts.length>=2&&st.length>=2){
       var d0=Math.hypot(st[1].x-st[0].x,st[1].y-st[0].y),d1=Math.hypot(ts[1].x-ts[0].x,ts[1].y-ts[0].y),r=d1/d0;
       var cx=((st[0].x+st[1].x)/2-cr.left)*ratio,cy=((st[0].y+st[1].y)/2-cr.top)*ratio;
-      adj.scale=sa.scale*r;adj.x=cx-(cx-sa.x)*r;adj.y=cy-(cy-sa.y)*r;
+      cur.scale=sa.scale*r;cur.x=cx-(cx-sa.x)*r;cur.y=cy-(cy-sa.y)*r;
     }
     drawPhoto();
   },{passive:false});
   ac.addEventListener('touchend',function(){st=null;sa=null;});
-  ac.addEventListener('mousedown',function(e){e.preventDefault();md=true;ms={x:e.clientX,y:e.clientY};mas={x:adj.x,y:adj.y};});
-  window.addEventListener('mousemove',function(e){if(!md)return;var cr=ac.getBoundingClientRect(),ratio=outW/cr.width;adj.x=mas.x+(e.clientX-ms.x)*ratio;adj.y=mas.y+(e.clientY-ms.y)*ratio;drawPhoto();});
+  ac.addEventListener('mousedown',function(e){
+    e.preventDefault();md=true;
+    ms={x:e.clientX,y:e.clientY};
+    var cur=getCurAdj();mas={x:cur.x,y:cur.y};
+  });
+  window.addEventListener('mousemove',function(e){
+    if(!md)return;
+    var cr=ac.getBoundingClientRect(),ratio=outW/cr.width;
+    var cur=getCurAdj();
+    cur.x=mas.x+(e.clientX-ms.x)*ratio;
+    cur.y=mas.y+(e.clientY-ms.y)*ratio;
+    drawPhoto();
+  });
   window.addEventListener('mouseup',function(){md=false;});
-  ac.addEventListener('wheel',function(e){e.preventDefault();var d=e.deltaY>0?0.93:1.07,cr=ac.getBoundingClientRect(),ratio=outW/cr.width,lx=(e.clientX-cr.left)*ratio,ly=(e.clientY-cr.top)*ratio;adj.x=lx-(lx-adj.x)*d;adj.y=ly-(ly-adj.y)*d;adj.scale*=d;drawPhoto();},{passive:false});
+  ac.addEventListener('wheel',function(e){
+    e.preventDefault();
+    var d=e.deltaY>0?0.93:1.07,cr=ac.getBoundingClientRect(),ratio=outW/cr.width;
+    var lx=(e.clientX-cr.left)*ratio,ly=(e.clientY-cr.top)*ratio;
+    var cur=getCurAdj();
+    cur.x=lx-(lx-cur.x)*d;cur.y=ly-(ly-cur.y)*d;cur.scale*=d;
+    drawPhoto();
+  },{passive:false});
 }
-document.getElementById('resetBtn').onclick=function(){adj.x=adj.bx;adj.y=adj.by;adj.scale=adj.bs;drawPhoto();};
+document.getElementById('resetBtn').onclick=function(){
+  if(adjTarget==='stamp'&&sImg){
+    var ss=0.3;
+    sAdj={x:outW*0.65,y:outH*0.65,scale:Math.min(outW,outH)*ss/Math.max(sImg.naturalWidth,sImg.naturalHeight)};
+  }else{
+    adj.x=adj.bx;adj.y=adj.by;adj.scale=adj.bs;
+  }
+  drawPhoto();
+};
 document.getElementById('applyBtn').onclick=function(){
   var rc=document.getElementById('resCanvas');rc.width=outW;rc.height=outH;rc.getContext('2d').drawImage(ac,0,0);
   var resSec=document.getElementById('resSection');resSec.classList.remove('hidden');
@@ -1074,6 +1162,8 @@ document.getElementById('cRecBtn').onclick=function(){
     setSt('cRecStbox','録画完了！','done');
     var resSec=document.getElementById('cResSection');
     resSec.classList.remove('hidden');
+    // 録画一覧に追加
+    addCamHistory(blob, snap.toDataURL('image/png'));
     window.scrollTo({top:resSec.offsetTop-10,behavior:'smooth'});
   };
 
@@ -1139,7 +1229,38 @@ function showPresetToast(msg){
   t._tid=setTimeout(function(){t.style.opacity='0';},1800);
 }
 
-// ===== 合図音（Web Audio API） =====
+// ===== 録画一覧 =====
+var camHistoryCount=0;
+function addCamHistory(blob, thumbDataUrl){
+  camHistoryCount++;
+  var num=camHistoryCount;
+  var url=URL.createObjectURL(blob);
+  var sec=document.getElementById('cHistorySection');
+  var list=document.getElementById('cHistoryList');
+  sec.style.display='block';
+  var item=document.createElement('div');
+  item.style.cssText='display:flex;align-items:center;gap:10px;padding:8px;background:var(--surface2);border-radius:var(--rs);';
+  var thumb=document.createElement('img');
+  thumb.src=thumbDataUrl;
+  thumb.style.cssText='width:56px;height:56px;object-fit:cover;border-radius:6px;flex-shrink:0;';
+  var info=document.createElement('div');
+  info.style.cssText='flex:1;min-width:0;';
+  info.innerHTML='<div style="font-size:12px;font-weight:600;">録画 '+num+'</div>'
+    +'<div style="font-size:11px;color:var(--text2);">'+(new Date().toLocaleTimeString())+'</div>';
+  var dlBtn=document.createElement('button');
+  dlBtn.className='abtn pri';
+  dlBtn.style.cssText='padding:8px 12px;font-size:12px;flex-shrink:0;';
+  dlBtn.textContent='⬇ DL';
+  dlBtn.onclick=function(){
+    var a=document.createElement('a');
+    a.download='cam_frame_'+Date.now()+'.webm';
+    a.href=url;a.click();
+  };
+  item.appendChild(thumb);item.appendChild(info);item.appendChild(dlBtn);
+  list.insertBefore(item,list.firstChild); // 新しいものを上に
+}
+
+
 function playBeep(freq, dur, vol){
   try{
     var actx=new (window.AudioContext||window.webkitAudioContext)();
@@ -1355,21 +1476,7 @@ document.getElementById('sClearBtn').onclick=function(){
   if(pImg&&fImg) drawPhoto();
 };
 
-// drawPhoto をスタンプ対応に上書き
-var _origDrawPhoto=drawPhoto;
-drawPhoto=function(){
-  actx.clearRect(0,0,ac.width,ac.height);
-  var dw=pImg.naturalWidth*adj.scale,dh=pImg.naturalHeight*adj.scale;
-  if(selLayer==='over'){
-    actx.drawImage(fImg,0,0,ac.width,ac.height);
-    actx.drawImage(pImg,adj.x,adj.y,dw,dh);
-  }else{
-    actx.drawImage(pImg,adj.x,adj.y,dw,dh);
-    actx.drawImage(fImg,0,0,ac.width,ac.height);
-  }
-  // スタンプを最前面に全体フィット表示
-  if(sImg) actx.drawImage(sImg,0,0,ac.width,ac.height);
-};
+// スタンプはdrawPhoto内で処理済み
 
 // ===== DL動画のシーク対応（durationメタデータ付与） =====
 // WebMにdurationを書き込むユーティリティ
@@ -1393,13 +1500,22 @@ var _origVMediaRecStop=null;
 function hookVResultVideo(blob){
   vTrimBlob=blob;
   var v=document.getElementById('vResultVideo');
-  v.src=URL.createObjectURL(blob);
-  v.onloadedmetadata=function(){
-    var dur=isNaN(v.duration)?0:v.duration;
-    document.getElementById('vTrimEnd').value=dur.toFixed(1);
-    document.getElementById('vTrimEnd').max=dur;
-    document.getElementById('vTrimStart').max=dur;
+  // seekable WebM: BlobのURLをそのまま使うとシーク不可の場合がある
+  // Fetch+ArrayBufferで読み直すことでシーク可能になる
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var ab=e.target.result;
+    var newBlob=new Blob([ab],{type:blob.type});
+    var url=URL.createObjectURL(newBlob);
+    v.src=url;
+    v.onloadedmetadata=function(){
+      var dur=isNaN(v.duration)||!isFinite(v.duration)?0:v.duration;
+      document.getElementById('vTrimEnd').value=dur.toFixed(1);
+      document.getElementById('vTrimEnd').max=dur||9999;
+      document.getElementById('vTrimStart').max=dur||9999;
+    };
   };
+  reader.readAsArrayBuffer(blob);
 }
 
 document.getElementById('vTrimBtn').onclick=async function(){
