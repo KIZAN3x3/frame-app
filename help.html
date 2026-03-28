@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>使い方ガイド｜フレーム合成アプリ</title>
+<style>
+:root{
+  --bg:#0a0a0a;
+  --surface:#141414;
+  --surface2:#1c1c1c;
+  --border:#272727;
+  --text:#f2f2f2;
+  --text2:#888;
+  --text3:#555;
+  --accent:#e63329;
+  --accent2:#ff6b5b;
+  --gold:#f5a623;
+  --green:#22c55e;
+  --blue:#3b82f6;
+  --purple:#a855f7;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'Hiragino Sans','Yu Gothic UI','Meiryo',sans-serif;line-height:1.6;overflow-x:hidden;}
+
+/* ヘッダー */
+header{
+  position:relative;
+  padding:60px 20px 50px;
+  text-align:center;
+  overflow:hidden;
+}
+header::before{
+  content:'';
+  position:absolute;inset:0;
+  background:radial-gradient(ellipse at 50% 0%,rgba(230,51,41,0.15) 0%,transparent 70%);
+  pointer-events:none;
+}
+.back-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  color:var(--text2);font-size:13px;text-decoration:none;
+  margin-bottom:24px;padding:6px 14px;
+  border:1px solid var(--border);border-radius:20px;
+  transition:color .2s,border-color .2s;
+}
+.back-btn:hover{color:var(--text);border-color:var(--text3);}
+.badge{
+  display:inline-block;
+  background:var(--accent);color:#fff;
+  font-size:11px;font-weight:700;letter-spacing:1px;
+  padding:4px 12px;border-radius:20px;
+  margin-bottom:16px;
+}
+h1{font-size:26px;font-weight:800;line-height:1.3;margin-bottom:10px;letter-spacing:-.5px;}
+h1 em{font-style:normal;color:var(--accent);}
+.subtitle{font-size:13px;color:var(--text2);max-width:320px;margin:0 auto;}
+
+/* ナビ */
+nav{
+  display:flex;overflow-x:auto;gap:8px;padding:0 20px 16px;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;background:rgba(10,10,10,0.95);
+  backdrop-filter:blur(10px);z-index:100;
+}
+nav::-webkit-scrollbar{display:none;}
+nav a{
+  flex-shrink:0;padding:7px 16px;
+  border:1px solid var(--border);border-radius:20px;
+  color:var(--text2);font-size:12px;font-weight:600;
+  text-decoration:none;white-space:nowrap;
+  transition:all .2s;
+}
+nav a:hover,nav a.active{
+  background:var(--accent);border-color:var(--accent);color:#fff;
+}
+
+/* コンテンツ */
+.container{max-width:520px;margin:0 auto;padding:0 20px 60px;}
+
+/* セクション */
+section{padding:40px 0 0;}
+.section-label{
+  display:flex;align-items:center;gap:10px;margin-bottom:24px;
+}
+.section-label .icon{
+  width:36px;height:36px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;flex-shrink:0;
+}
+.section-label h2{font-size:18px;font-weight:700;}
+.section-label p{font-size:12px;color:var(--text2);margin-top:2px;}
+
+/* ステップカード */
+.steps{display:flex;flex-direction:column;gap:0;}
+.step{
+  display:flex;gap:14px;padding:16px 0;
+  border-bottom:1px solid var(--border);
+  position:relative;
+}
+.step:last-child{border-bottom:none;}
+.step-num{
+  width:28px;height:28px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;flex-shrink:0;
+  margin-top:2px;
+}
+.step-content h3{font-size:14px;font-weight:700;margin-bottom:4px;}
+.step-content p{font-size:12px;color:var(--text2);line-height:1.7;}
+.step-content .tip{
+  display:inline-block;margin-top:6px;
+  background:var(--surface2);padding:4px 10px;
+  border-radius:6px;font-size:11px;color:var(--text2);
+  border-left:2px solid var(--gold);
+}
+
+/* 連続矢印 */
+.step-connector{
+  width:1px;background:var(--border);
+  position:absolute;left:13px;top:44px;bottom:-16px;
+}
+.step:last-child .step-connector{display:none;}
+
+/* 環境対応表 */
+.env-table{border-radius:12px;overflow:hidden;border:1px solid var(--border);}
+.env-row{
+  display:grid;grid-template-columns:1fr 1fr 1fr;
+  border-bottom:1px solid var(--border);
+}
+.env-row:last-child{border-bottom:none;}
+.env-cell{
+  padding:12px 10px;font-size:12px;text-align:center;
+}
+.env-cell.header{font-weight:700;background:var(--surface2);font-size:11px;color:var(--text2);}
+.env-cell.label{text-align:left;font-weight:600;padding-left:14px;}
+.ok{color:var(--green);}
+.partial{color:var(--gold);}
+.ng{color:var(--accent);}
+
+/* FAQアコーディオン */
+.faq{display:flex;flex-direction:column;gap:8px;}
+.faq-item{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;overflow:hidden;
+}
+.faq-q{
+  width:100%;padding:14px 16px;
+  display:flex;justify-content:space-between;align-items:center;
+  background:none;border:none;color:var(--text);
+  font-size:13px;font-weight:600;text-align:left;cursor:pointer;gap:10px;
+}
+.faq-q .arrow{color:var(--text3);font-size:16px;flex-shrink:0;transition:transform .3s;}
+.faq-item.open .faq-q .arrow{transform:rotate(180deg);}
+.faq-a{
+  max-height:0;overflow:hidden;transition:max-height .3s ease;
+  font-size:12px;color:var(--text2);line-height:1.8;
+}
+.faq-item.open .faq-a{max-height:300px;}
+.faq-a-inner{padding:0 16px 14px;}
+
+/* ポイントカード */
+.point-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:16px;margin-bottom:8px;
+  display:flex;gap:12px;align-items:flex-start;
+}
+.point-card .ico{font-size:22px;flex-shrink:0;}
+.point-card h3{font-size:13px;font-weight:700;margin-bottom:4px;}
+.point-card p{font-size:12px;color:var(--text2);line-height:1.7;}
+
+/* アプリボタン */
+.app-btn{
+  display:block;width:100%;padding:15px;
+  background:var(--accent);border:none;border-radius:12px;
+  color:#fff;font-size:15px;font-weight:700;
+  text-align:center;text-decoration:none;margin-top:32px;
+}
+
+/* フッター */
+footer{
+  text-align:center;padding:24px 20px;
+  border-top:1px solid var(--border);
+  font-size:11px;color:var(--text3);
+}
+</style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="back-btn">← アプリに戻る</a>
+  <div class="badge">SNS担当者向けガイド</div>
+  <h1>フレーム<em>合成</em>アプリ<br>使い方ガイド</h1>
+  <p class="subtitle">政治活動・選挙活動のSNS発信を素早く、強力に。</p>
+</header>
+
+<nav>
+  <a href="#photo" class="active">📷 写真</a>
+  <a href="#video">🎬 動画</a>
+  <a href="#camera">📹 カメラ</a>
+  <a href="#env">📱 対応環境</a>
+  <a href="#faq">❓ FAQ</a>
+</nav>
+
+<div class="container">
+
+  <!-- 写真モード -->
+  <section id="photo">
+    <div class="section-label">
+      <div class="icon" style="background:rgba(230,51,41,0.15);">📷</div>
+      <div>
+        <h2>写真モード</h2>
+        <p>写真にフレームを重ねてPNGで保存</p>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-connector"></div>
+        <div class="step-num" style="background:rgba(230,51,41,0.2);color:var(--accent);">1</div>
+        <div class="step-content">
+          <h3>写真を選ぶ</h3>
+          <p>ギャラリーから選択、またはカメラで直接撮影。HEIC・JPG・PNG対応。</p>
+          <span class="tip">💡 カメラボタンでフロント/リアカメラ切替可能</span>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-connector"></div>
+        <div class="step-num" style="background:rgba(230,51,41,0.2);color:var(--accent);">2</div>
+        <div class="step-content">
+          <h3>枠画像を選ぶ</h3>
+          <p>事前に配布された透過PNG枠を選択。よく使う枠はプリセット保存で次回から一発選択。</p>
+          <span class="tip">💡 枠はプリセット保存しておくと素早い</span>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-connector"></div>
+        <div class="step-num" style="background:rgba(230,51,41,0.2);color:var(--accent);">3</div>
+        <div class="step-content">
+          <h3>位置・明るさを調整</h3>
+          <p>ドラッグで移動、ピンチで拡縮。明るさ・コントラストスライダーで仕上がりを調整。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:rgba(34,197,94,0.2);color:var(--green);">✓</div>
+        <div class="step-content">
+          <h3>「これで合成する」→ダウンロード</h3>
+          <p>PNG画像として保存。そのままInstagram・X・Facebookに投稿できます。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 動画モード -->
+  <section id="video">
+    <div class="section-label">
+      <div class="icon" style="background:rgba(59,130,246,0.15);">🎬</div>
+      <div>
+        <h2>動画モード</h2>
+        <p>既存の動画にフレームを重ねて合成</p>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-connector"></div>
+        <div class="step-num" style="background:rgba(59,130,246,0.2);color:var(--blue);">1</div>
+        <div class="step-content">
+          <h3>動画ファイルを選ぶ</h3>
+          <p>MP4・MOV・WebM対応。スマホで撮影した動画をそのまま読み込めます。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-connector"></div>
+        <div class="step-num" style="background:rgba(59,130,246,0.2);color:var(--blue);">2</div>
+        <div class="step-content">
+          <h3>枠画像を選ぶ</h3>
+          <p>透過PNG枠を選択。動画全体に枠が重なります。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-connector"></div>
+        <div class="step-num" style="background:rgba(59,130,246,0.2);color:var(--blue);">3</div>
+        <div class="step-content">
+          <h3>プレビューして「録画して合成」</h3>
+          <p>動画を1回再生する時間がかかります。再生が終わると自動で合成完了。</p>
+          <span class="tip">⚠️ 合成中はアプリを閉じないでください</span>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-connector"></div>
+        <div class="step-num" style="background:rgba(59,130,246,0.2);color:var(--blue);">4</div>
+        <div class="step-content">
+          <h3>WebMでDL→MP4変換（任意）</h3>
+          <p>インスタ・XにはMP4が必要です。DL後に<strong style="color:var(--text);">kommodo.ai/tools/webm-to-mp4</strong>で変換してください。</p>
+          <span class="tip">🔒 端末内処理・データ収集なし</span>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:rgba(34,197,94,0.2);color:var(--green);">✓</div>
+        <div class="step-content">
+          <h3>トリミングして投稿</h3>
+          <p>必要な部分だけトリミングしてMP4でDL。そのままSNSに投稿できます。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- カメラモード -->
+  <section id="camera">
+    <div class="section-label">
+      <div class="icon" style="background:rgba(168,85,247,0.15);">📹</div>
+      <div>
+        <h2>カメラモード</h2>
+        <p>リアルタイムでフレームを重ねながら録画</p>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-connector"></div>
+        <div class="step-num" style="background:rgba(168,85,247,0.2);color:var(--purple);">1</div>
+        <div class="step-content">
+          <h3>枠画像を選んでカメラ起動</h3>
+          <p>枠を選択して「カメラ起動」ボタン。リアルタイムで枠が重なった状態でプレビュー。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-connector"></div>
+        <div class="step-num" style="background:rgba(168,85,247,0.2);color:var(--purple);">2</div>
+        <div class="step-content">
+          <h3>ズーム・明るさを調整</h3>
+          <p>ピンチでズーム、🔍ボタンでズームスライダー、☀️ボタンで明るさ調整。</p>
+          <span class="tip">💡 フロント/リアカメラは🔄ボタンで切替</span>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-connector"></div>
+        <div class="step-num" style="background:rgba(168,85,247,0.2);color:var(--purple);">3</div>
+        <div class="step-content">
+          <h3>録画開始 → 停止</h3>
+          <p>赤い●ボタンで録画開始。画面上部に赤点滅インジケーターが表示されます。停止後すぐDL可能。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:rgba(34,197,94,0.2);color:var(--green);">✓</div>
+        <div class="step-content">
+          <h3>MP4に変換して投稿</h3>
+          <p>DL後にkommodoで変換→SNSに投稿。静止画はそのまま保存可能。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 対応環境 -->
+  <section id="env">
+    <div class="section-label">
+      <div class="icon" style="background:rgba(245,166,35,0.15);">📱</div>
+      <div>
+        <h2>対応環境</h2>
+        <p>推奨ブラウザ：Chrome</p>
+      </div>
+    </div>
+    <div class="env-table">
+      <div class="env-row">
+        <div class="env-cell header label">機能</div>
+        <div class="env-cell header">Android<br>Chrome</div>
+        <div class="env-cell header">iPhone<br>Safari</div>
+      </div>
+      <div class="env-row">
+        <div class="env-cell label">📷 写真モード</div>
+        <div class="env-cell ok">✅ 完全対応</div>
+        <div class="env-cell ok">✅ 完全対応</div>
+      </div>
+      <div class="env-row">
+        <div class="env-cell label">🎬 動画モード</div>
+        <div class="env-cell ok">✅ 完全対応</div>
+        <div class="env-cell ok">✅ 完全対応</div>
+      </div>
+      <div class="env-row">
+        <div class="env-cell label">📹 カメラ録画</div>
+        <div class="env-cell ok">✅ 完全対応</div>
+        <div class="env-cell partial">⚠️ 一部制限</div>
+      </div>
+      <div class="env-row">
+        <div class="env-cell label">🎬 MP4変換</div>
+        <div class="env-cell ok">✅ 対応</div>
+        <div class="env-cell ok">✅ 対応</div>
+      </div>
+      <div class="env-row">
+        <div class="env-cell label">✂️ トリミング</div>
+        <div class="env-cell ok">✅ 対応</div>
+        <div class="env-cell ok">✅ 対応</div>
+      </div>
+    </div>
+    <p style="font-size:11px;color:var(--text3);margin-top:10px;padding:0 4px;">⚠️ iPhoneのカメラ録画は一部機能が制限される場合があります。写真・動画モードは完全対応。</p>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq">
+    <div class="section-label">
+      <div class="icon" style="background:rgba(34,197,94,0.15);">❓</div>
+      <div>
+        <h2>よくある質問</h2>
+        <p>タップして回答を表示</p>
+      </div>
+    </div>
+    <div class="faq">
+      <div class="faq-item">
+        <button class="faq-q">枠（PNG）はどこから入手しますか？<span class="arrow">▾</span></button>
+        <div class="faq-a"><div class="faq-a-inner">担当者から配布されたPNGファイルを使用してください。透過PNG形式であれば写真や動画に自然に重なります。</div></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">インスタ・Xに投稿できる形式は？<span class="arrow">▾</span></button>
+        <div class="faq-a"><div class="faq-a-inner">写真はPNG形式でそのまま投稿可能です。動画・カメラモードはWebM形式でDLされるため、<strong>kommodo.ai/tools/webm-to-mp4</strong>でMP4に変換してから投稿してください。変換は無料・端末内処理で安全です。</div></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">動画合成に時間がかかります<span class="arrow">▾</span></button>
+        <div class="faq-a"><div class="faq-a-inner">動画モードは動画を1回再生する時間がかかります（例：1分の動画→約1分）。合成中はアプリを閉じたりスリープにしないようにしてください。</div></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">プリセットとは何ですか？<span class="arrow">▾</span></button>
+        <div class="faq-a"><div class="faq-a-inner">よく使う枠画像を登録しておく機能です。「＋ 現在の枠をプリセット保存」ボタンで登録でき、次回から一タップで選択できます。端末に保存されます。</div></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">画面が暗くなって録画が止まります<span class="arrow">▾</span></button>
+        <div class="faq-a"><div class="faq-a-inner">カメラ録画中は自動的に画面暗転防止（WakeLock）が働きます。それでも暗くなる場合はスマホの設定で「画面のスリープ」を長めに設定してください。</div></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">データは外部に送信されますか？<span class="arrow">▾</span></button>
+        <div class="faq-a"><div class="faq-a-inner">写真・動画の合成処理はすべてお使いの端末内で行われます。MP4変換・トリミングのみ専用サーバーを使用しますが、処理後すぐにデータは削除されます。</div></div>
+      </div>
+    </div>
+  </section>
+
+  <a href="index.html" class="app-btn">▶ アプリを使う</a>
+
+</div>
+
+<footer>
+  フレーム合成アプリ｜SNS担当者向けツール
+</footer>
+
+<script>
+// FAQ アコーディオン
+document.querySelectorAll('.faq-q').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    var item=this.closest('.faq-item');
+    item.classList.toggle('open');
+  });
+});
+
+// ナビのアクティブ状態
+var sections=document.querySelectorAll('section[id]');
+var navLinks=document.querySelectorAll('nav a');
+window.addEventListener('scroll',function(){
+  var scrollY=window.scrollY+100;
+  sections.forEach(function(sec){
+    if(scrollY>=sec.offsetTop&&scrollY<sec.offsetTop+sec.offsetHeight){
+      navLinks.forEach(function(a){a.classList.remove('active');});
+      var active=document.querySelector('nav a[href="#'+sec.id+'"]');
+      if(active) active.classList.add('active');
+    }
+  });
+});
+</script>
+</body>
+</html>
