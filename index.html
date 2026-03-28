@@ -423,6 +423,19 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
 var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
 
 // ===== タブ切り替え =====
+function trackEvent(type){
+  fetch('https://kizan.jp/track',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({type:type})
+  }).catch(function(){});
+}
+
+// ページ読み込み時にアクセスをカウント
+window.addEventListener('load',function(){
+  trackEvent('access');
+});
+
 function switchTab(mode){
   ['photo','video','camera'].forEach(function(m){
     document.getElementById(m+'Mode').classList.toggle('hidden',m!==mode);
@@ -746,6 +759,7 @@ document.getElementById('resetBtn').onclick=function(){
   drawPhoto();
 };
 document.getElementById('applyBtn').onclick=function(){
+  trackEvent('photo');
   var rc=document.getElementById('resCanvas');rc.width=outW;rc.height=outH;rc.getContext('2d').drawImage(ac,0,0);
   var resSec=document.getElementById('resSection');resSec.classList.remove('hidden');
   window.scrollTo({top:resSec.offsetTop-10,behavior:'smooth'});
@@ -964,6 +978,7 @@ document.getElementById('vRecBtn').onclick=function(){
     document.getElementById('vDlBtn').onclick=function(){
       var a=document.createElement('a');a.download='frame_video_'+Date.now()+'.webm';a.href=url;a.click();
     };
+    trackEvent('video');
     setSt('vRecStbox','合成完了！','done');
     document.getElementById('progWrap').classList.add('hidden');
     document.getElementById('vRecBtn').disabled=false;
@@ -1262,6 +1277,7 @@ document.getElementById('cRecBtn').onclick=function(){
     document.getElementById('cSnapBtn').onclick=function(){
       var a=document.createElement('a');a.download='cam_frame_snap_'+Date.now()+'.png';a.href=snap.toDataURL('image/png');a.click();
     };
+    trackEvent('camera');
     setSt('cRecStbox','録画完了！','done');
     var resSec=document.getElementById('cResSection');
     resSec.classList.remove('hidden');
@@ -1693,6 +1709,7 @@ async function trimWithServer(blob, start, end, stboxId){
     var a=document.createElement('a');
     a.download='trimmed_'+Date.now()+'.mp4';
     a.href=url;a.click();
+    trackEvent('trim');
     setSt(stboxId,'トリミング完了！MP4でDLしました','done');
   }catch(e){
     setSt(stboxId,'失敗：'+e.message,'err');
