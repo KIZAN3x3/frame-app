@@ -150,13 +150,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
     <div class="card">
       <div class="ch"><div class="num" id="n3">3</div><span class="ct">設定</span></div>
       <div class="cb">
-        <p style="font-size:11px;color:var(--text2);margin-bottom:6px;">出力サイズ</p>
-        <div class="opts" id="sOpts">
-          <div class="opt on" data-v="1080x1080">正方形<br>1080×1080</div>
-          <div class="opt" data-v="1080x1920">縦型<br>1080×1920</div>
-          <div class="opt" data-v="1200x630">横型<br>1200×630</div>
-          <div class="opt" data-v="auto">枠に合わせる</div>
-        </div>
+
         <p style="font-size:11px;color:var(--text2);margin-bottom:6px;">人物レイヤー</p>
         <div class="opts" id="lOpts">
           <div class="opt on" data-v="under">枠が前面</div>
@@ -474,12 +468,12 @@ var ac=document.getElementById('adjCanvas');
 var actx=ac.getContext('2d');
 var gestureSetup=false;
 
-['sOpts','lOpts'].forEach(function(id){
+['lOpts'].forEach(function(id){
   document.getElementById(id).addEventListener('click',function(e){
     var b=e.target.closest('.opt');if(!b)return;
     this.querySelectorAll('.opt').forEach(function(x){x.classList.remove('on');});
     b.classList.add('on');
-    if(id==='sOpts')selSize=b.dataset.v;else selLayer=b.dataset.v;
+    selLayer=b.dataset.v;
   });
 });
 document.getElementById('pIn').onchange=async function(e){
