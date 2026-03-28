@@ -592,8 +592,22 @@ var adjTarget='photo'; // 'photo' or 'stamp'
 var pBrightness=100,pContrast=100; // 明るさ・コントラスト
 
 function applyBrightnessContrast(ctx,x,y,w,h,brightness,contrast){
-  // canvas.filterが使えない環境（iOS Safari）向けピクセル操作
   if(brightness===100&&contrast===100) return;
+  // canvas.filterが使える環境では高速なfilterを使う
+  if(typeof ctx.filter!=='undefined'&&ctx.filter!==undefined){
+    try{
+      // 一時canvasでfilter適用
+      var tmp=document.createElement('canvas');
+      tmp.width=w;tmp.height=h;
+      var tc=tmp.getContext('2d');
+      tc.filter='brightness('+brightness+'%) contrast('+contrast+'%)';
+      tc.drawImage(ctx.canvas,x,y,w,h,0,0,w,h);
+      ctx.clearRect(x,y,w,h);
+      ctx.drawImage(tmp,x,y);
+      return;
+    }catch(e){}
+  }
+  // フォールバック：ピクセル操作（iOS Safari向け）
   var imageData=ctx.getImageData(x,y,w,h);
   var d=imageData.data;
   var b=(brightness-100)/100;
