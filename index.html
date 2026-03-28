@@ -95,7 +95,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
     <div class="card">
       <div class="ch"><div class="num" id="n1">1</div><span class="ct">人物写真</span></div>
       <div class="cb">
-        <div class="ua" id="pArea" onclick="document.getElementById('pIn').click()">
+        <div class="ua" id="pArea" onclick="document.getElementById('pIn').value='';document.getElementById('pIn').click()">
           <span style="font-size:28px">📷</span>
           <span style="font-size:13px;color:var(--text2)">タップして写真を選択</span>
           <span style="font-size:11px;color:var(--text2)">JPG / PNG / HEIC</span>
@@ -118,7 +118,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
     <div class="card">
       <div class="ch"><div class="num" id="n2">2</div><span class="ct">枠画像</span></div>
       <div class="cb">
-        <div class="ua" id="fArea" onclick="document.getElementById('fIn').click()">
+        <div class="ua" id="fArea" onclick="document.getElementById('fIn').value='';document.getElementById('fIn').click()">
           <span style="font-size:28px">🖼</span>
           <span style="font-size:13px;color:var(--text2)">タップして枠を選択（PNG推奨）</span>
           <span style="font-size:11px;color:var(--text2)">透過PNG対応</span>
@@ -136,7 +136,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
     <div class="card">
       <div class="ch"><div class="num" id="n25">2.5</div><span class="ct">スタンプ画像（任意）</span></div>
       <div class="cb">
-        <div class="ua" id="sArea" onclick="document.getElementById('sIn').click()">
+        <div class="ua" id="sArea" onclick="document.getElementById('sIn').value='';document.getElementById('sIn').click()">
           <span style="font-size:28px">🎨</span>
           <span style="font-size:13px;color:var(--text2)">タップしてスタンプ画像を選択（任意）</span>
           <span style="font-size:11px;color:var(--text2)">透過PNG推奨・写真の最前面に表示</span>
@@ -478,8 +478,7 @@ var gestureSetup=false;
 });
 document.getElementById('pIn').onchange=async function(e){
   var f=e.target.files[0];if(!f)return;
-  pImg=await loadImg(f);markZone('pArea','n1',pImg.src);checkPhotoReady();
-  // 新しい写真を選んだらフィルターリセット
+  pImg=await loadImg(f);filteredPImg=null;markZone('pArea','n1',pImg.src);checkPhotoReady();
   pBrightness=100;pContrast=100;
   document.getElementById('brightnessSlider').value=100;
   document.getElementById('contrastSlider').value=100;
@@ -493,7 +492,11 @@ function checkPhotoReady(){document.getElementById('goBtn').disabled=!(pImg&&fIm
 var filterTimer=null;
 function scheduleDrawPhoto(){
   if(filterTimer) clearTimeout(filterTimer);
-  filterTimer=setTimeout(function(){drawPhoto();},30);
+  filterTimer=setTimeout(function(){
+    filteredPImg=null; // キャッシュクリア
+    updateFilteredImage();
+    drawPhoto();
+  },50);
 }
 document.getElementById('brightnessSlider').addEventListener('input',function(){
   pBrightness=parseInt(this.value);
@@ -620,20 +623,41 @@ function applyBrightnessContrast(ctx,x,y,w,h,brightness,contrast){
   ctx.putImageData(imageData,x,y);
 }
 
+// フィルター適用済みの写真イメージをキャッシュ
+var filteredPImg=null;
+function updateFilteredImage(){
+  if(!pImg) return;
+  var tmp=document.createElement('canvas');
+  tmp.width=pImg.naturalWidth;tmp.height=pImg.naturalHeight;
+  var tc=tmp.getContext('2d');
+  if(pBrightness!==100||pContrast!==100){
+    try{
+      tc.filter='brightness('+pBrightness+'%) contrast('+pContrast+'%)';
+      tc.drawImage(pImg,0,0);
+      tc.filter='none';
+    }catch(e){
+      tc.drawImage(pImg,0,0);
+      applyBrightnessContrast(tc,0,0,tmp.width,tmp.height,pBrightness,pContrast);
+    }
+  }else{
+    tc.drawImage(pImg,0,0);
+  }
+  filteredPImg=tmp;
+}
+
 function drawPhoto(){
+  if(!filteredPImg) updateFilteredImage();
   actx.clearRect(0,0,ac.width,ac.height);
   var dw=pImg.naturalWidth*adj.scale,dh=pImg.naturalHeight*adj.scale;
   var px=Math.round(adj.x),py=Math.round(adj.y),pw=Math.round(dw),ph=Math.round(dh);
+  var src=filteredPImg||pImg;
   if(selLayer==='over'){
     actx.drawImage(fImg,0,0,ac.width,ac.height);
-    actx.drawImage(pImg,px,py,pw,ph);
-    applyBrightnessContrast(actx,px,py,pw,ph,pBrightness,pContrast);
+    actx.drawImage(src,px,py,pw,ph);
   }else{
-    actx.drawImage(pImg,px,py,pw,ph);
-    applyBrightnessContrast(actx,px,py,pw,ph,pBrightness,pContrast);
+    actx.drawImage(src,px,py,pw,ph);
     actx.drawImage(fImg,0,0,ac.width,ac.height);
   }
-  // スタンプを最前面に（フィルターなし）
   if(sImg){
     var sw=sImg.naturalWidth*sAdj.scale,sh=sImg.naturalHeight*sAdj.scale;
     actx.drawImage(sImg,sAdj.x,sAdj.y,sw,sh);
