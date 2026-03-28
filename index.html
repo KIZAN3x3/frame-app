@@ -461,7 +461,7 @@ function setSt(id,msg,type){
 function hideSt(id){document.getElementById(id).className='stbox';}
 
 // ===== 写真モード =====
-var pImg=null,fImg=null,selSize='1080x1080',selLayer='under';
+var pImg=null,fImg=null,selSize='auto',selLayer='under';
 var outW=1080,outH=1080;
 var adj={x:0,y:0,scale:1,bx:0,by:0,bs:1};
 var ac=document.getElementById('adjCanvas');
@@ -490,15 +490,20 @@ document.getElementById('pIn').onchange=async function(e){
 function checkPhotoReady(){document.getElementById('goBtn').disabled=!(pImg&&fImg);}
 
 // 明るさ・コントラストスライダー
+var filterTimer=null;
+function scheduleDrawPhoto(){
+  if(filterTimer) clearTimeout(filterTimer);
+  filterTimer=setTimeout(function(){drawPhoto();},30);
+}
 document.getElementById('brightnessSlider').addEventListener('input',function(){
   pBrightness=parseInt(this.value);
   document.getElementById('brightnessVal').textContent=this.value;
-  if(pImg&&fImg) drawPhoto();
+  if(pImg&&fImg) scheduleDrawPhoto();
 });
 document.getElementById('contrastSlider').addEventListener('input',function(){
   pContrast=parseInt(this.value);
   document.getElementById('contrastVal').textContent=this.value;
-  if(pImg&&fImg) drawPhoto();
+  if(pImg&&fImg) scheduleDrawPhoto();
 });
 document.getElementById('filterResetBtn').onclick=function(){
   pBrightness=100;pContrast=100;
