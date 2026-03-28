@@ -285,16 +285,22 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
         <div class="ch"><div class="num ok">✓</div><span class="ct">動画合成完了！</span></div>
         <div class="cb">
           <video id="vResultVideo" style="display:block;width:100%;border-radius:var(--rs);background:#000;" controls></video>
-          <div id="vTrimWrap" style="margin-top:10px;">
-            <p style="font-size:11px;color:var(--text2);margin-bottom:6px;">✂️ トリミング（任意）</p>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <label style="font-size:11px;color:var(--text2);white-space:nowrap;">開始</label>
-              <input type="number" id="vTrimStart" value="0" min="0" step="0.1" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);padding:6px;font-size:12px;">
-              <label style="font-size:11px;color:var(--text2);white-space:nowrap;">終了</label>
-              <input type="number" id="vTrimEnd" value="0" min="0" step="0.1" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);padding:6px;font-size:12px;">
-              <span style="font-size:11px;color:var(--text2);">秒</span>
+          <div id="vTrimWrap" style="margin-top:10px;padding:10px;background:var(--surface2);border-radius:var(--rs);">
+            <p style="font-size:11px;color:var(--text2);margin-bottom:8px;">✂️ トリミング（任意）</p>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <span style="font-size:11px;color:var(--text2);width:28px;">開始</span>
+              <input type="range" id="vTrimStartSlider" min="0" max="100" step="0.1" value="0" style="flex:1;accent-color:var(--green);">
+              <span style="font-size:11px;color:var(--green);width:36px;text-align:right;" id="vTrimStartVal">0.0s</span>
+              <button class="abtn" id="vTrimSetStart" style="padding:4px 8px;font-size:11px;color:var(--green);border-color:var(--green);">▶ ここから</button>
             </div>
-            <button class="abtn pri" id="vTrimBtn" style="width:100%;margin-top:8px;padding:10px;">✂️ トリミングして保存</button>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="font-size:11px;color:var(--text2);width:28px;">終了</span>
+              <input type="range" id="vTrimEndSlider" min="0" max="100" step="0.1" value="100" style="flex:1;accent-color:var(--red);">
+              <span style="font-size:11px;color:var(--red);width:36px;text-align:right;" id="vTrimEndVal">0.0s</span>
+              <button class="abtn" id="vTrimSetEnd" style="padding:4px 8px;font-size:11px;color:var(--red);border-color:var(--red);">⏹ ここまで</button>
+            </div>
+            <p style="font-size:12px;color:var(--text2);text-align:center;margin-bottom:8px;">選択範囲：<span id="vTrimLength" style="color:var(--accent);font-weight:700;">0.0s</span></p>
+            <button class="abtn pri" id="vTrimBtn" style="width:100%;padding:10px;">✂️ トリミングしてMP4でDL</button>
             <div class="stbox" id="vTrimStbox"></div>
           </div>
           <button class="dlbtn" id="vDlBtn" style="margin-top:10px;">⬇ 動画をダウンロード（WebM）</button>
@@ -403,8 +409,26 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
         <div class="cb">
           <canvas id="cSnapCanvas" class="preview-canvas hidden"></canvas>
           <button class="dlbtn" id="cVideoDlBtn" style="margin-top:0">⬇ 動画をダウンロード（WebM）</button>
-          <button class="dlbtn" id="cMp4Btn" style="border-color:var(--green);color:var(--green);margin-top:8px;">🎬 MP4に変換してDL（インスタ・X対応）</button>
+          <button class="dlbtn" id="cMp4Btn" style="border-color:var(--green);color:var(--green);margin-top:8px;">🎬 MP4に変換してDL</button>
           <div class="stbox" id="cMp4Stbox"></div>
+          <div id="cTrimWrap" style="margin-top:10px;padding:10px;background:var(--surface2);border-radius:var(--rs);">
+            <p style="font-size:11px;color:var(--text2);margin-bottom:8px;">✂️ トリミング（任意）</p>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <span style="font-size:11px;color:var(--text2);width:28px;">開始</span>
+              <input type="range" id="cTrimStartSlider" min="0" max="100" step="0.1" value="0" style="flex:1;accent-color:var(--green);">
+              <span style="font-size:11px;color:var(--green);width:36px;text-align:right;" id="cTrimStartVal">0.0s</span>
+              <button class="abtn" id="cTrimSetStart" style="padding:4px 8px;font-size:11px;color:var(--green);border-color:var(--green);">▶ ここから</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="font-size:11px;color:var(--text2);width:28px;">終了</span>
+              <input type="range" id="cTrimEndSlider" min="0" max="100" step="0.1" value="100" style="flex:1;accent-color:var(--red);">
+              <span style="font-size:11px;color:var(--red);width:36px;text-align:right;" id="cTrimEndVal">0.0s</span>
+              <button class="abtn" id="cTrimSetEnd" style="padding:4px 8px;font-size:11px;color:var(--red);border-color:var(--red);">⏹ ここまで</button>
+            </div>
+            <p style="font-size:12px;color:var(--text2);text-align:center;margin-bottom:8px;">選択範囲：<span id="cTrimLength" style="color:var(--accent);font-weight:700;">0.0s</span></p>
+            <button class="abtn pri" id="cTrimBtn" style="width:100%;padding:10px;">✂️ トリミングしてMP4でDL</button>
+            <div class="stbox" id="cTrimStbox"></div>
+          </div>
           <button class="dlbtn" id="cSnapBtn" style="border-color:var(--green);color:var(--green);margin-top:8px">📸 静止画として保存（PNG・枠あり）</button>
           <button class="dlbtn" id="cVideoNoFrameBtn" style="border-color:var(--text2);color:var(--text2);margin-top:8px">🎬 動画をダウンロード（WebM・枠なし）</button>
           <button class="rtbtn" id="cRtBtn">↩ カメラに戻る</button>
@@ -1205,6 +1229,22 @@ document.getElementById('cRecBtn').onclick=function(){
   cMediaRec.onstop=function(){
     var blob=new Blob(cRecChunks,{type:mimeType});
     cLastBlob=blob; // MP4変換用に保存
+    // カメラトリムスライダー初期化
+    var tmpUrl=URL.createObjectURL(blob);
+    var tmpVid=document.createElement('video');
+    tmpVid.src=tmpUrl;
+    tmpVid.onloadedmetadata=function(){
+      var dur=isFinite(tmpVid.duration)?tmpVid.duration:0;
+      cTrimStart=0;cTrimEnd=dur;
+      ['cTrimStartSlider','cTrimEndSlider'].forEach(function(id){
+        document.getElementById(id).max=dur||999;
+      });
+      document.getElementById('cTrimStartSlider').value=0;
+      document.getElementById('cTrimEndSlider').value=dur;
+      document.getElementById('cTrimStartVal').textContent='0.0s';
+      document.getElementById('cTrimEndVal').textContent=dur.toFixed(1)+'s';
+      document.getElementById('cTrimLength').textContent=dur.toFixed(1)+'s';
+    };
     var url=URL.createObjectURL(blob);
     document.getElementById('cVideoDlBtn').onclick=function(){
       var a=document.createElement('a');a.download='cam_frame_'+Date.now()+'.webm';a.href=url;a.click();
@@ -1589,8 +1629,6 @@ var _origVMediaRecStop=null;
 function hookVResultVideo(blob){
   vTrimBlob=blob;
   var v=document.getElementById('vResultVideo');
-  // seekable WebM: BlobのURLをそのまま使うとシーク不可の場合がある
-  // Fetch+ArrayBufferで読み直すことでシーク可能になる
   var reader=new FileReader();
   reader.onload=function(e){
     var ab=e.target.result;
@@ -1599,51 +1637,104 @@ function hookVResultVideo(blob){
     v.src=url;
     v.onloadedmetadata=function(){
       var dur=isNaN(v.duration)||!isFinite(v.duration)?0:v.duration;
-      document.getElementById('vTrimEnd').value=dur.toFixed(1);
-      document.getElementById('vTrimEnd').max=dur||9999;
-      document.getElementById('vTrimStart').max=dur||9999;
+      // トリムスライダー初期化
+      vTrimStart2=0;vTrimEnd2=dur;vTrimDur=dur;
+      ['vTrimStartSlider','vTrimEndSlider'].forEach(function(id){
+        document.getElementById(id).max=dur;
+      });
+      document.getElementById('vTrimStartSlider').value=0;
+      document.getElementById('vTrimEndSlider').value=dur;
+      document.getElementById('vTrimStartVal').textContent='0.0s';
+      document.getElementById('vTrimEndVal').textContent=dur.toFixed(1)+'s';
+      document.getElementById('vTrimLength').textContent=dur.toFixed(1)+'s';
     };
   };
   reader.readAsArrayBuffer(blob);
 }
 
-document.getElementById('vTrimBtn').onclick=async function(){
-  if(!vTrimBlob){setSt('vTrimStbox','先に動画を合成してください','err');return;}
-  var start=parseFloat(document.getElementById('vTrimStart').value)||0;
-  var end=parseFloat(document.getElementById('vTrimEnd').value)||0;
-  if(end<=start){setSt('vTrimStbox','終了時間は開始時間より後にしてください','err');return;}
-  setSt('vTrimStbox','トリミング中...','loading');
-  // MediaRecorder + Canvasを使ってトリミング
-  var v=document.getElementById('vResultVideo');
-  v.currentTime=start;
-  await new Promise(function(res){v.onseeked=res;});
-  var tc=document.createElement('canvas');
-  tc.width=v.videoWidth;tc.height=v.videoHeight;
-  var tctx=tc.getContext('2d');
-  var trimStream=tc.captureStream(30);
-  var trimChunks=[];
-  var mimeType='video/webm;codecs=vp9';
-  if(!MediaRecorder.isTypeSupported(mimeType))mimeType='video/webm';
-  var trimRec=new MediaRecorder(trimStream,{mimeType:mimeType});
-  trimRec.ondataavailable=function(e){if(e.data.size>0)trimChunks.push(e.data);};
-  trimRec.onstop=function(){
-    var blob=new Blob(trimChunks,{type:mimeType});
-    var url=URL.createObjectURL(blob);
+// ===== トリミング共通関数（サーバーサイド） =====
+async function trimWithServer(blob, start, end, stboxId){
+  if(!blob){setSt(stboxId,'動画がありません','err');return;}
+  if(end<=start){setSt(stboxId,'終了点は開始点より後にしてください','err');return;}
+  setSt(stboxId,'サーバーに送信中...','loading');
+  try{
+    var formData=new FormData();
+    formData.append('video',blob,'input.webm');
+    formData.append('start',start);
+    formData.append('end',end);
+    var res=await fetch('https://kizan.jp/trim',{method:'POST',body:formData});
+    if(!res.ok) throw new Error('サーバーエラー');
+    var mp4Blob=await res.blob();
+    var url=URL.createObjectURL(mp4Blob);
     var a=document.createElement('a');
-    a.download='trimmed_'+Date.now()+'.webm';
+    a.download='trimmed_'+Date.now()+'.mp4';
     a.href=url;a.click();
-    setSt('vTrimStbox','トリミング完了！','done');
-  };
-  v.play();trimRec.start(100);
-  function trimLoop(){
-    if(v.currentTime>=end||v.ended){
-      trimRec.stop();v.pause();return;
-    }
-    tctx.drawImage(v,0,0);
-    requestAnimationFrame(trimLoop);
+    setSt(stboxId,'トリミング完了！MP4でDLしました','done');
+  }catch(e){
+    setSt(stboxId,'失敗：'+e.message,'err');
   }
-  trimLoop();
+}
+
+// ===== 動画モードトリミング =====
+var vTrimStart2=0,vTrimEnd2=0,vTrimDur=0;
+document.getElementById('vTrimStartSlider').addEventListener('input',function(){
+  vTrimStart2=Math.min(parseFloat(this.value),vTrimEnd2-0.1);
+  this.value=vTrimStart2;
+  document.getElementById('vTrimStartVal').textContent=vTrimStart2.toFixed(1)+'s';
+  document.getElementById('vTrimLength').textContent=(vTrimEnd2-vTrimStart2).toFixed(1)+'s';
+  var v=document.getElementById('vResultVideo');v.currentTime=vTrimStart2;
+});
+document.getElementById('vTrimEndSlider').addEventListener('input',function(){
+  vTrimEnd2=Math.max(parseFloat(this.value),vTrimStart2+0.1);
+  this.value=vTrimEnd2;
+  document.getElementById('vTrimEndVal').textContent=vTrimEnd2.toFixed(1)+'s';
+  document.getElementById('vTrimLength').textContent=(vTrimEnd2-vTrimStart2).toFixed(1)+'s';
+  var v=document.getElementById('vResultVideo');v.currentTime=vTrimEnd2;
+});
+document.getElementById('vTrimSetStart').onclick=function(){
+  var v=document.getElementById('vResultVideo');
+  vTrimStart2=v.currentTime;
+  document.getElementById('vTrimStartSlider').value=vTrimStart2;
+  document.getElementById('vTrimStartVal').textContent=vTrimStart2.toFixed(1)+'s';
+  document.getElementById('vTrimLength').textContent=(vTrimEnd2-vTrimStart2).toFixed(1)+'s';
 };
+document.getElementById('vTrimSetEnd').onclick=function(){
+  var v=document.getElementById('vResultVideo');
+  vTrimEnd2=v.currentTime;
+  document.getElementById('vTrimEndSlider').value=vTrimEnd2;
+  document.getElementById('vTrimEndVal').textContent=vTrimEnd2.toFixed(1)+'s';
+  document.getElementById('vTrimLength').textContent=(vTrimEnd2-vTrimStart2).toFixed(1)+'s';
+};
+document.getElementById('vTrimBtn').onclick=async function(){
+  await trimWithServer(vTrimBlob,vTrimStart2,vTrimEnd2,'vTrimStbox');
+};
+
+// ===== カメラモードトリミング =====
+var cTrimStart=0,cTrimEnd=0;
+document.getElementById('cTrimStartSlider').addEventListener('input',function(){
+  cTrimStart=Math.min(parseFloat(this.value),cTrimEnd-0.1);
+  this.value=cTrimStart;
+  document.getElementById('cTrimStartVal').textContent=cTrimStart.toFixed(1)+'s';
+  document.getElementById('cTrimLength').textContent=(cTrimEnd-cTrimStart).toFixed(1)+'s';
+});
+document.getElementById('cTrimEndSlider').addEventListener('input',function(){
+  cTrimEnd=Math.max(parseFloat(this.value),cTrimStart+0.1);
+  this.value=cTrimEnd;
+  document.getElementById('cTrimEndVal').textContent=cTrimEnd.toFixed(1)+'s';
+  document.getElementById('cTrimLength').textContent=(cTrimEnd-cTrimStart).toFixed(1)+'s';
+});
+document.getElementById('cTrimSetStart').onclick=function(){
+  // カメラ録画はプレビュー動画がないので直接値を使う
+  setSt('cTrimStbox','開始点を設定しました','');
+};
+document.getElementById('cTrimSetEnd').onclick=function(){
+  setSt('cTrimStbox','終了点を設定しました','');
+};
+document.getElementById('cTrimBtn').onclick=async function(){
+  await trimWithServer(cLastBlob,cTrimStart,cTrimEnd,'cTrimStbox');
+};
+
+
 
 // ===== WakeLock（画面暗転防止） =====
 var wakeLock=null;
