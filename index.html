@@ -267,7 +267,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
           <p class="hint">📱 1本指ドラッグで移動 / 2本指ピンチで拡縮<br>💻 ドラッグで移動 / スクロールでズーム</p>
           <div class="aacts" style="margin-top:10px;">
             <button class="abtn" id="vPlayBtn">▶ 再生</button>
-            <button class="abtn" id="vMuteBtn">🔇 ミュート</button>
+            <button class="abtn" id="vMuteBtn">🔇 消音（ON中は音声なし）</button>
             <button class="abtn pri" id="vRecBtn">⏺ 録画して合成</button>
           </div>
           <div class="stbox" id="vRecStbox"></div>
@@ -411,24 +411,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
           <button class="dlbtn" id="cVideoDlBtn" style="margin-top:0">⬇ 動画をダウンロード（WebM）</button>
           <button class="dlbtn" id="cMp4Btn" style="border-color:var(--green);color:var(--green);margin-top:8px;">🎬 MP4に変換してDL</button>
           <div class="stbox" id="cMp4Stbox"></div>
-          <div id="cTrimWrap" style="margin-top:10px;padding:10px;background:var(--surface2);border-radius:var(--rs);">
-            <p style="font-size:11px;color:var(--text2);margin-bottom:8px;">✂️ トリミング（任意）</p>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-              <span style="font-size:11px;color:var(--text2);width:28px;">開始</span>
-              <input type="range" id="cTrimStartSlider" min="0" max="100" step="0.1" value="0" style="flex:1;accent-color:var(--green);">
-              <span style="font-size:11px;color:var(--green);width:36px;text-align:right;" id="cTrimStartVal">0.0s</span>
-              <button class="abtn" id="cTrimSetStart" style="padding:4px 8px;font-size:11px;color:var(--green);border-color:var(--green);">▶ ここから</button>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-              <span style="font-size:11px;color:var(--text2);width:28px;">終了</span>
-              <input type="range" id="cTrimEndSlider" min="0" max="100" step="0.1" value="100" style="flex:1;accent-color:var(--red);">
-              <span style="font-size:11px;color:var(--red);width:36px;text-align:right;" id="cTrimEndVal">0.0s</span>
-              <button class="abtn" id="cTrimSetEnd" style="padding:4px 8px;font-size:11px;color:var(--red);border-color:var(--red);">⏹ ここまで</button>
-            </div>
-            <p style="font-size:12px;color:var(--text2);text-align:center;margin-bottom:8px;">選択範囲：<span id="cTrimLength" style="color:var(--accent);font-weight:700;">0.0s</span></p>
-            <button class="abtn pri" id="cTrimBtn" style="width:100%;padding:10px;">✂️ トリミングしてMP4でDL</button>
-            <div class="stbox" id="cTrimStbox"></div>
-          </div>
+
           <button class="dlbtn" id="cSnapBtn" style="border-color:var(--green);color:var(--green);margin-top:8px">📸 静止画として保存（PNG・枠あり）</button>
           <button class="dlbtn" id="cVideoNoFrameBtn" style="border-color:var(--text2);color:var(--text2);margin-top:8px">🎬 動画をダウンロード（WebM・枠なし）</button>
           <button class="rtbtn" id="cRtBtn">↩ カメラに戻る</button>
@@ -1236,20 +1219,7 @@ document.getElementById('cRecBtn').onclick=function(){
     var tmpUrl=URL.createObjectURL(blob);
     var tmpVid=document.createElement('video');
     tmpVid.src=tmpUrl;
-    tmpVid.onloadedmetadata=function(){
-      var dur=isFinite(tmpVid.duration)&&tmpVid.duration>0?tmpVid.duration:60;
-      cTrimStart=0;cTrimEnd=dur;
-      var step=Math.max(0.1,dur/1000);
-      ['cTrimStartSlider','cTrimEndSlider'].forEach(function(id){
-        var el=document.getElementById(id);
-        el.max=dur;el.step=step;
-      });
-      document.getElementById('cTrimStartSlider').value=0;
-      document.getElementById('cTrimEndSlider').value=dur;
-      document.getElementById('cTrimStartVal').textContent='0.0s';
-      document.getElementById('cTrimEndVal').textContent=dur.toFixed(1)+'s';
-      document.getElementById('cTrimLength').textContent=dur.toFixed(1)+'s';
-    };
+
     var url=URL.createObjectURL(blob);
     document.getElementById('cVideoDlBtn').onclick=function(){
       var a=document.createElement('a');a.download='cam_frame_'+Date.now()+'.webm';a.href=url;a.click();
@@ -1641,23 +1611,37 @@ function hookVResultVideo(blob){
     var url=URL.createObjectURL(newBlob);
     v.src=url;
     v.onloadedmetadata=function(){
-      var dur=isNaN(v.duration)||!isFinite(v.duration)?60:v.duration;
-      if(!isFinite(dur)||dur<=0) dur=60;
-      // トリムスライダー初期化
-      vTrimStart2=0;vTrimEnd2=dur;vTrimDur=dur;
-      var step=Math.max(0.1,dur/1000);
-      ['vTrimStartSlider','vTrimEndSlider'].forEach(function(id){
-        var el=document.getElementById(id);
-        el.max=dur;el.step=step;
-      });
-      document.getElementById('vTrimStartSlider').value=0;
-      document.getElementById('vTrimEndSlider').value=dur;
-      document.getElementById('vTrimStartVal').textContent='0.0s';
-      document.getElementById('vTrimEndVal').textContent=dur.toFixed(1)+'s';
-      document.getElementById('vTrimLength').textContent=dur.toFixed(1)+'s';
+      var dur=v.duration;
+      if(!isFinite(dur)||dur<=0){
+        // WebMのdurationがInfinityの場合→末尾シークで実際の長さを取得
+        v.currentTime=1e9;
+        v.ontimeupdate=function(){
+          v.ontimeupdate=null;
+          var realDur=isFinite(v.duration)?v.duration:v.currentTime;
+          v.currentTime=0;
+          initVTrimSliders(realDur);
+        };
+      }else{
+        initVTrimSliders(dur);
+      }
     };
   };
   reader.readAsArrayBuffer(blob);
+}
+
+function initVTrimSliders(dur){
+  if(!dur||dur<=0) dur=60;
+  vTrimStart2=0;vTrimEnd2=dur;vTrimDur=dur;
+  var step=Math.max(0.1,dur/1000);
+  ['vTrimStartSlider','vTrimEndSlider'].forEach(function(id){
+    var el=document.getElementById(id);
+    el.max=dur;el.step=step;
+  });
+  document.getElementById('vTrimStartSlider').value=0;
+  document.getElementById('vTrimEndSlider').value=dur;
+  document.getElementById('vTrimStartVal').textContent='0.0s';
+  document.getElementById('vTrimEndVal').textContent=dur.toFixed(1)+'s';
+  document.getElementById('vTrimLength').textContent=dur.toFixed(1)+'s';
 }
 
 // ===== トリミング共通関数（サーバーサイド） =====
