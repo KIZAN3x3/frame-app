@@ -585,20 +585,34 @@ var sAdj={x:0,y:0,scale:1};
 var adjTarget='photo'; // 'photo' or 'stamp'
 var pBrightness=100,pContrast=100; // 明るさ・コントラスト
 
+function applyBrightnessContrast(ctx,x,y,w,h,brightness,contrast){
+  // canvas.filterが使えない環境（iOS Safari）向けピクセル操作
+  if(brightness===100&&contrast===100) return;
+  var imageData=ctx.getImageData(x,y,w,h);
+  var d=imageData.data;
+  var b=(brightness-100)/100;
+  var c=contrast/100;
+  for(var i=0;i<d.length;i+=4){
+    d[i]  =Math.min(255,Math.max(0,((d[i]/255-0.5)*c+0.5+b)*255));
+    d[i+1]=Math.min(255,Math.max(0,((d[i+1]/255-0.5)*c+0.5+b)*255));
+    d[i+2]=Math.min(255,Math.max(0,((d[i+2]/255-0.5)*c+0.5+b)*255));
+  }
+  ctx.putImageData(imageData,x,y);
+}
+
 function drawPhoto(){
   actx.clearRect(0,0,ac.width,ac.height);
   var dw=pImg.naturalWidth*adj.scale,dh=pImg.naturalHeight*adj.scale;
-  // フィルター適用（写真のみ）
-  actx.filter='brightness('+pBrightness+'%) contrast('+pContrast+'%)';
+  var px=Math.round(adj.x),py=Math.round(adj.y),pw=Math.round(dw),ph=Math.round(dh);
   if(selLayer==='over'){
     actx.drawImage(fImg,0,0,ac.width,ac.height);
-    actx.drawImage(pImg,adj.x,adj.y,dw,dh);
+    actx.drawImage(pImg,px,py,pw,ph);
+    applyBrightnessContrast(actx,px,py,pw,ph,pBrightness,pContrast);
   }else{
-    actx.drawImage(pImg,adj.x,adj.y,dw,dh);
-    actx.filter='none'; // 枠にはフィルターなし
+    actx.drawImage(pImg,px,py,pw,ph);
+    applyBrightnessContrast(actx,px,py,pw,ph,pBrightness,pContrast);
     actx.drawImage(fImg,0,0,ac.width,ac.height);
   }
-  actx.filter='none';
   // スタンプを最前面に（フィルターなし）
   if(sImg){
     var sw=sImg.naturalWidth*sAdj.scale,sh=sImg.naturalHeight*sAdj.scale;
@@ -693,7 +707,17 @@ document.getElementById('applyBtn').onclick=function(){
   window.scrollTo({top:resSec.offsetTop-10,behavior:'smooth'});
 };
 document.getElementById('rtBtn').onclick=function(){document.getElementById('resSection').classList.add('hidden');window.scrollTo({top:document.getElementById('adjSection').offsetTop-10,behavior:'smooth'});};
-document.getElementById('dlBtn').onclick=function(){var rc=document.getElementById('resCanvas');var a=document.createElement('a');a.download='frame_'+Date.now()+'.png';a.href=rc.toDataURL('image/png');a.click();};
+document.getElementById('dlBtn').onclick=function(){
+  var rc=document.getElementById('resCanvas');
+  var dataUrl=rc.toDataURL('image/png');
+  // iOS Safari対応DL
+  if(/iPad|iPhone|iPod/.test(navigator.userAgent)){
+    var w=window.open('','_blank');
+    if(w){w.document.write('<img src="'+dataUrl+'" style="max-width:100%"><p>長押しして画像を保存してください</p>');w.document.close();}
+  }else{
+    var a=document.createElement('a');a.download='frame_'+Date.now()+'.png';a.href=dataUrl;a.click();
+  }
+};
 
 // ===== 動画モード =====
 // 修正方針：
