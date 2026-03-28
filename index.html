@@ -906,9 +906,12 @@ document.getElementById('vPlayBtn').onclick=function(){
   else{videoEl.pause();this.textContent='▶ 再生';}
 };
 
+var vIsMuted=false;
 document.getElementById('vMuteBtn').onclick=function(){
-  videoEl.muted=!videoEl.muted;
-  this.textContent=videoEl.muted?'🔊 ミュート解除':'🔇 ミュート';
+  vIsMuted=!vIsMuted;
+  videoEl.muted=vIsMuted;
+  videoEl.volume=vIsMuted?0:1;
+  this.textContent=vIsMuted?'🔊 ミュート解除':'🔇 ミュート';
 };
 
 document.getElementById('vRecBtn').onclick=function(){
@@ -1234,10 +1237,12 @@ document.getElementById('cRecBtn').onclick=function(){
     var tmpVid=document.createElement('video');
     tmpVid.src=tmpUrl;
     tmpVid.onloadedmetadata=function(){
-      var dur=isFinite(tmpVid.duration)?tmpVid.duration:0;
+      var dur=isFinite(tmpVid.duration)&&tmpVid.duration>0?tmpVid.duration:60;
       cTrimStart=0;cTrimEnd=dur;
+      var step=Math.max(0.1,dur/1000);
       ['cTrimStartSlider','cTrimEndSlider'].forEach(function(id){
-        document.getElementById(id).max=dur||999;
+        var el=document.getElementById(id);
+        el.max=dur;el.step=step;
       });
       document.getElementById('cTrimStartSlider').value=0;
       document.getElementById('cTrimEndSlider').value=dur;
@@ -1636,11 +1641,14 @@ function hookVResultVideo(blob){
     var url=URL.createObjectURL(newBlob);
     v.src=url;
     v.onloadedmetadata=function(){
-      var dur=isNaN(v.duration)||!isFinite(v.duration)?0:v.duration;
+      var dur=isNaN(v.duration)||!isFinite(v.duration)?60:v.duration;
+      if(!isFinite(dur)||dur<=0) dur=60;
       // トリムスライダー初期化
       vTrimStart2=0;vTrimEnd2=dur;vTrimDur=dur;
+      var step=Math.max(0.1,dur/1000);
       ['vTrimStartSlider','vTrimEndSlider'].forEach(function(id){
-        document.getElementById(id).max=dur;
+        var el=document.getElementById(id);
+        el.max=dur;el.step=step;
       });
       document.getElementById('vTrimStartSlider').value=0;
       document.getElementById('vTrimEndSlider').value=dur;
