@@ -262,14 +262,13 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
           <div class="aacts" style="margin-top:10px;">
             <button class="abtn" id="vPlayBtn">▶ 再生</button>
             <button class="abtn" id="vMuteBtn">🔇 消音（ON中は音声なし）</button>
-            <button class="abtn pri" id="vRecBtn">⏺ 録画して合成</button>
+            <button class="abtn pri" id="vRecBtn">🎬 サーバーで合成</button>
           </div>
           <div class="stbox" id="vRecStbox"></div>
           <div class="prog-wrap hidden" id="progWrap">
-            <div class="prog-label"><span>合成中...</span><span id="progPct">0%</span></div>
+            <div class="prog-label"><span id="progLabel">合成中...</span><span id="progPct"></span></div>
             <progress id="progBar" value="0" max="100"></progress>
           </div>
-          <p class="rec-info">※ 録画は動画を1回再生する時間がかかります</p>
         </div>
       </div>
     </div>
@@ -934,73 +933,52 @@ document.getElementById('vMuteBtn').onclick=function(){
   this.textContent=vIsMuted?'🔊 ミュート解除':'🔇 ミュート';
 };
 
-document.getElementById('vRecBtn').onclick=function(){
-  if(vMediaRec&&vMediaRec.state==='recording')return;
-  vRecChunks=[];
-  document.getElementById('vRecBtn').disabled=true;
-  setSt('vRecStbox','動画の最初から録画を開始します…','loading');
+document.getElementById('vRecBtn').onclick=async function(){
+  if(!vFile||!vfImg){setSt('vRecStbox','動画と枠画像を選択してください','err');return;}
+  this.disabled=true;
+  setSt('vRecStbox','サーバーに送信中...','loading');
   document.getElementById('progWrap').classList.remove('hidden');
-  document.getElementById('progBar').value=0;
-  document.getElementById('progPct').textContent='0%';
+  document.getElementById('progBar').value=10;
+  document.getElementById('progLabel').textContent='アップロード中...';
 
-  // canvas映像 + AudioContext経由の音声を合成したストリームを作成
-  // ユーザー操作内（ここ）で AudioContext を初期化することで suspended を回避
-  initAudioContext();
-  var combined=new MediaStream();
-  vpc.captureStream(30).getVideoTracks().forEach(function(t){combined.addTrack(t);});
-  if(vAudioCtx&&vAudioDestStream){
-    vAudioCtx.resume();
-    vAudioDestStream.getAudioTracks().forEach(function(t){combined.addTrack(t);});
-  }
-  var stream=combined;
+  try{
+    var formData=new FormData();
+    formData.append('video',vFile,vFile.name);
+    // 枠画像をBlobに変換
+    var frameCanvas=document.createElement('canvas');
+    frameCanvas.width=vfImg.naturalWidth;frameCanvas.height=vfImg.naturalHeight;
+    frameCanvas.getContext('2d').drawImage(vfImg,0,0);
+    var frameBlob=await new Promise(function(r){frameCanvas.toBlob(r,'image/png');});
+    formData.append('frame',frameBlob,'frame.png');
 
-  var mimeType='video/webm;codecs=vp9';
-  if(!MediaRecorder.isTypeSupported(mimeType))mimeType='video/webm;codecs=vp8';
-  if(!MediaRecorder.isTypeSupported(mimeType))mimeType='video/webm';
-  vMediaRec=new MediaRecorder(stream,{mimeType:mimeType,videoBitsPerSecond:8000000});
-  vMediaRec.ondataavailable=function(e){if(e.data&&e.data.size>0)vRecChunks.push(e.data);};
-  vMediaRec.onstop=function(){
-    var blob=new Blob(vRecChunks,{type:mimeType});
-    var url=URL.createObjectURL(blob);
-    hookVResultVideo(blob);
+    document.getElementById('progBar').value=30;
+    document.getElementById('progLabel').textContent='サーバーで合成中...';
+
+    var res=await fetch('https://kizan.jp/compose',{method:'POST',body:formData});
+    if(!res.ok) throw new Error('合成失敗');
+
+    document.getElementById('progBar').value=80;
+    document.getElementById('progLabel').textContent='ダウンロード準備中...';
+
+    var mp4Blob=await res.blob();
+    var url=URL.createObjectURL(mp4Blob);
+
     document.getElementById('vDlBtn').onclick=function(){
-      var a=document.createElement('a');a.download='frame_video_'+Date.now()+'.webm';a.href=url;a.click();
+      var a=document.createElement('a');a.download='frame_video_'+Date.now()+'.mp4';a.href=url;a.click();
     };
+    hookVResultVideo(mp4Blob);
+    document.getElementById('progBar').value=100;
     setSt('vRecStbox','合成完了！','done');
     document.getElementById('progWrap').classList.add('hidden');
-    document.getElementById('vRecBtn').disabled=false;
-    document.getElementById('vRecBtn').textContent='⏺ 録画して合成';
+    this.disabled=false;
     var resSec=document.getElementById('vResSection');
     resSec.classList.remove('hidden');
     window.scrollTo({top:resSec.offsetTop-10,behavior:'smooth'});
-  };
-
-  // 動画を最初から再生して録画
-  videoEl.currentTime=0;
-  videoEl.loop=false;
-  videoEl.play();
-  vMediaRec.start(100); // 100ms ごとにチャンク
-
-  var dur=videoEl.duration;
-  function recLoop(){
-    if(vMediaRec&&vMediaRec.state==='recording'){
-      if(!isNaN(dur)&&dur>0){
-        var pct=Math.min(100,Math.round((videoEl.currentTime/dur)*100));
-        document.getElementById('progBar').value=pct;
-        document.getElementById('progPct').textContent=pct+'%';
-      }
-      // プレビューループが既に走っているのでここでは描画しない
-      requestAnimationFrame(recLoop);
-    }
+  }catch(e){
+    setSt('vRecStbox','失敗：'+e.message,'err');
+    document.getElementById('progWrap').classList.add('hidden');
+    this.disabled=false;
   }
-
-  videoEl.addEventListener('ended',function onEnded(){
-    videoEl.removeEventListener('ended',onEnded);
-    if(vMediaRec&&vMediaRec.state==='recording') vMediaRec.stop();
-    // ループ再生に戻す
-    videoEl.loop=true;
-  });
-  recLoop();
 };
 
 document.getElementById('vRtBtn').onclick=function(){
