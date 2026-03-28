@@ -212,17 +212,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
 
   <!-- ========== 動画モード ========== -->
   <div id="videoMode" class="hidden">
-    <div id="iosVideoWarn" class="hidden">
-      <div class="card" style="border-color:var(--red);">
-        <div class="cb" style="display:flex;gap:10px;align-items:flex-start;">
-          <span style="font-size:22px;flex-shrink:0">🚫</span>
-          <div>
-            <p style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:4px;">iOS非対応</p>
-            <p style="font-size:12px;color:var(--text2);line-height:1.7;">動画モード・カメラモードはiOS Safariでは動作しません。<br>Android または PC（Chrome推奨）でご利用ください。</p>
-          </div>
-        </div>
-      </div>
-    </div>
+
     <div id="videoModeContent">
     <div class="card">
       <div class="ch"><div class="num" id="vn1">1</div><span class="ct">動画をアップロード</span></div>
@@ -319,17 +309,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
 
   <!-- ========== カメラモード ========== -->
   <div id="cameraMode" class="hidden">
-    <div id="iosCameraWarn" class="hidden">
-      <div class="card" style="border-color:var(--red);">
-        <div class="cb" style="display:flex;gap:10px;align-items:flex-start;">
-          <span style="font-size:22px;flex-shrink:0">🚫</span>
-          <div>
-            <p style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:4px;">iOS非対応</p>
-            <p style="font-size:12px;color:var(--text2);line-height:1.7;">動画モード・カメラモードはiOS Safariでは動作しません。<br>Android または PC（Chrome推奨）でご利用ください。</p>
-          </div>
-        </div>
-      </div>
-    </div>
+
     <div id="cameraModeContent">
     <div class="card">
       <div class="ch"><div class="num" id="cn1">1</div><span class="ct">枠画像</span></div>
@@ -450,15 +430,6 @@ function switchTab(mode){
   });
   // タブ切替時にプリセット表示を更新（hidden解除後に再描画）
   if(typeof renderAllPresets==='function') renderAllPresets();
-  // iOSなら動画・カメラモードで警告を表示しコンテンツを隠す
-  if(mode==='video'){
-    document.getElementById('iosVideoWarn').classList.toggle('hidden',!isIOS);
-    document.getElementById('videoModeContent').classList.toggle('hidden',isIOS);
-  }
-  if(mode==='camera'){
-    document.getElementById('iosCameraWarn').classList.toggle('hidden',!isIOS);
-    document.getElementById('cameraModeContent').classList.toggle('hidden',isIOS);
-  }
   // カメラタブから離れたらカメラ停止
   if(mode!=='camera') stopCamera();
   window.scrollTo({top:0,behavior:'smooth'});
