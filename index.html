@@ -802,12 +802,26 @@ function openImageForIOS(dataUrl){
   document.getElementById('iosModalMsg').innerHTML='① 画像を<b>長押し</b><br>②「<b>"写真"に保存</b>」をタップ';
   document.getElementById('iosModal').classList.add('show');
 }
-function openVideoForIOS(blobUrl){
+async function openVideoForIOS(blobUrl, blob){
+  // Web Share API で動画を共有→写真アプリに保存
+  if(navigator.share && navigator.canShare){
+    try{
+      var file=new File([blob],'frame_video.mp4',{type:'video/mp4'});
+      if(navigator.canShare({files:[file]})){
+        await navigator.share({files:[file],title:'合成動画'});
+        return;
+      }
+    }catch(e){
+      if(e.name==='AbortError') return; // ユーザーがキャンセル
+    }
+  }
+  // Web Share API 非対応の場合はモーダルで動画表示
   var im=document.getElementById('iosModalImg');
   im.src='';im.style.display='none';
   var vi=document.getElementById('iosModalVideo');
   vi.src=blobUrl;vi.style.display='block';
-  document.getElementById('iosModalMsg').innerHTML='① 動画を<b>長押し</b><br>②「<b>ビデオを保存</b>」をタップ';
+  document.getElementById('iosModalMsg').innerHTML=
+    '動画を再生後、右下の<b>共有ボタン</b>をタップ<br>→「<b>ビデオを保存</b>」で保存';
   document.getElementById('iosModal').classList.add('show');
 }
 
@@ -1432,9 +1446,9 @@ async function convertToMp4Server(blob,stboxId,filename){
     var mp4Blob=await res.blob();
     var url=URL.createObjectURL(mp4Blob);
     if(isIOS){
-      // iOS：モーダルで動画を表示して長押し保存
-      openVideoForIOS(url);
-      setSt(stboxId,'変換完了！動画を長押しして保存してください','done');
+      // iOS：Web Share API or モーダル
+      setSt(stboxId,'変換完了！共有メニューから保存してください','done');
+      openVideoForIOS(url, mp4Blob);
     }else{
       var a=document.createElement('a');
       a.download=filename+'_'+Date.now()+'.mp4';
