@@ -1453,16 +1453,40 @@ var cLastBlob=null;
 
 async function convertToMp4Server(blob,stboxId,filename){
   if(!blob){setSt(stboxId,'動画データがありません','err');return;}
-  setSt(stboxId,'変換中... ('+Math.round(blob.size/1024)+'KB)','loading');
+  setSt(stboxId,'アップロード中... 0%','loading');
+
+  // 擬似進捗タイマー
+  var _progVal=0;
+  var _progPhase='upload'; // upload → convert → download
+  var _progTimer=setInterval(function(){
+    var el=document.getElementById(stboxId);
+    if(!el)return;
+    if(_progPhase==='upload'){
+      _progVal=Math.min(_progVal+8,30);
+      el.querySelector('span:last-child').textContent='アップロード中... '+_progVal+'%';
+    }else if(_progPhase==='convert'){
+      _progVal=Math.min(_progVal+2,85);
+      el.querySelector('span:last-child').textContent='変換中... '+_progVal+'%';
+    }else if(_progPhase==='download'){
+      _progVal=Math.min(_progVal+10,99);
+      el.querySelector('span:last-child').textContent='受信中... '+_progVal+'%';
+    }
+  },300);
+
   try{
     var formData=new FormData();
     formData.append('video',blob,'input.webm');
+    _progPhase='upload';
     var res=await fetch(SERVER_URL,{method:'POST',body:formData});
+    _progPhase='convert';
     if(!res.ok){
+      clearInterval(_progTimer);
       var errText=await res.text().catch(function(){return '';});
       throw new Error('サーバーエラー '+res.status+': '+errText.slice(0,80));
     }
+    _progPhase='download';
     var mp4Blob=await res.blob();
+    clearInterval(_progTimer);
     if(!mp4Blob||mp4Blob.size<1000){
       throw new Error('MP4データが不正です(size='+mp4Blob.size+')');
     }
@@ -1479,6 +1503,7 @@ async function convertToMp4Server(blob,stboxId,filename){
       setSt(stboxId,'MP4変換完了！','done');
     }
   }catch(e){
+    clearInterval(_progTimer);
     // 変換失敗時はWebMをそのままDLさせる
     setSt(stboxId,'変換失敗（'+e.message+'）→ WebMでDLします','err');
     if(blob){
