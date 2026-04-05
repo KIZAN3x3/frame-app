@@ -1142,8 +1142,13 @@ async function startCamera(){
   await new Promise(function(res){
     camVideoEl.onloadedmetadata=function(){camVideoEl.play();res();};
   });
-  cpc.width=(cfImg&&cfImg.naturalWidth>0)?cfImg.naturalWidth:(camVideoEl.videoWidth||640);
-  cpc.height=(cfImg&&cfImg.naturalHeight>0)?cfImg.naturalHeight:(camVideoEl.videoHeight||640);
+  // canvasサイズ：枠基準だが録画負荷軽減のため1080px上限
+  var MAX_CAM_SIZE=1080;
+  var rawW=(cfImg&&cfImg.naturalWidth>0)?cfImg.naturalWidth:(camVideoEl.videoWidth||640);
+  var rawH=(cfImg&&cfImg.naturalHeight>0)?cfImg.naturalHeight:(camVideoEl.videoHeight||640);
+  var camScale=Math.min(1,MAX_CAM_SIZE/Math.max(rawW,rawH));
+  cpc.width=Math.round(rawW*camScale);
+  cpc.height=Math.round(rawH*camScale);
   resetCAdj();
   hideSt('cStbox');
   startCamPreviewLoop();
@@ -1279,13 +1284,14 @@ document.getElementById('cRecBtn').onclick=function(){
   cRecChunks=[];
   cNoFrameVideoUrl=null;
 
+  var REC_FPS=24; // 30より負荷が低くカクつきにくい
   var combined=new MediaStream();
-  cpc.captureStream(30).getVideoTracks().forEach(function(t){combined.addTrack(t);});
+  cpc.captureStream(REC_FPS).getVideoTracks().forEach(function(t){combined.addTrack(t);});
   if(camAudioStream){camAudioStream.getAudioTracks().forEach(function(t){combined.addTrack(t);});}
   var mimeType='video/webm;codecs=vp9';
   if(!MediaRecorder.isTypeSupported(mimeType))mimeType='video/webm;codecs=vp8';
   if(!MediaRecorder.isTypeSupported(mimeType))mimeType='video/webm';
-  cMediaRec=new MediaRecorder(combined,{mimeType:mimeType});
+  cMediaRec=new MediaRecorder(combined,{mimeType:mimeType,videoBitsPerSecond:4000000});
   cMediaRec.ondataavailable=function(e){if(e.data&&e.data.size>0)cRecChunks.push(e.data);};
   cMediaRec.onstop=function(){
     var blob=new Blob(cRecChunks,{type:mimeType});
@@ -1326,7 +1332,7 @@ document.getElementById('cRecBtn').onclick=function(){
   noFrameCanvas.width=cpc.width;noFrameCanvas.height=cpc.height;
   var noFrameCtx=noFrameCanvas.getContext('2d');
   var noFrameStream=new MediaStream();
-  noFrameCanvas.captureStream(30).getVideoTracks().forEach(function(t){noFrameStream.addTrack(t);});
+  noFrameCanvas.captureStream(REC_FPS).getVideoTracks().forEach(function(t){noFrameStream.addTrack(t);});
   if(camAudioStream){camAudioStream.getAudioTracks().forEach(function(t){noFrameStream.addTrack(t);});}
   var noFrameChunks=[];
   cNoFrameRec=new MediaRecorder(noFrameStream,{mimeType:mimeType});
@@ -1336,22 +1342,37 @@ document.getElementById('cRecBtn').onclick=function(){
     cNoFrameVideoUrl=URL.createObjectURL(blob);
   };
 
-  var noFrameAnimId=null;
-  function noFrameLoop(){
-    var saved=cfImg;cfImg=null;
-    drawCamFrame(noFrameCtx,noFrameCanvas.width,noFrameCanvas.height);
-    cfImg=saved;
-    noFrameAnimId=requestAnimationFrame(noFrameLoop);
-  }
-  var origStop=cMediaRec.onstop;
+  // noFrameCanvasはプレビューループ内で一緒に描画（別ループ不要）
+  var origDrawCam=drawCamFrame;
+  var noFrameActive=true;
+  var _origStop=cMediaRec.onstop;
   cMediaRec.onstop=function(){
-    cancelAnimationFrame(noFrameAnimId);
-    origStop.call(this);
+    noFrameActive=false;
+    _origStop.call(this);
   };
 
-  cMediaRec.start(100);
-  cNoFrameRec.start(100);
-  noFrameLoop();
+  // プレビューループを拡張してnoFrameCanvasも同時描画
+  var _origLoop=cAnimFrame;
+  var _origStartLoop=startCamPreviewLoop;
+  startCamPreviewLoop=function(){
+    if(cAnimFrame)cancelAnimationFrame(cAnimFrame);
+    function loop(){
+      if(cpc.width>0&&cpc.height>0){
+        drawCamFrame(cpcCtx,cpc.width,cpc.height);
+        if(noFrameActive&&noFrameCanvas.width>0){
+          var saved=cfImg;cfImg=null;
+          drawCamFrame(noFrameCtx,noFrameCanvas.width,noFrameCanvas.height);
+          cfImg=saved;
+        }
+      }
+      cAnimFrame=requestAnimationFrame(loop);
+    }
+    loop();
+  };
+  startCamPreviewLoop();
+
+  cMediaRec.start(200);
+  cNoFrameRec.start(200);
   cRecStartTime=Date.now();
   var self=this;
   self.textContent='⏹ 録画停止';self.classList.add('pri');
