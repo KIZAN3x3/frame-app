@@ -745,42 +745,52 @@ document.getElementById('rtBtn').onclick=function(){
   window.scrollTo({top:document.getElementById('adjSection').offsetTop-10,behavior:'smooth'});
 };
 
-// ===== 写真ダウンロード（修正版：Android / iOS 両対応） =====
+// ===== iOS用：DataURLで新窓表示（長押し保存） =====
+function openImageForIOS(dataUrl){
+  var w=window.open('','_blank');
+  if(w){
+    w.document.write(
+      '<!DOCTYPE html><html><head>'
+      +'<meta charset="UTF-8">'
+      +'<meta name="viewport" content="width=device-width,initial-scale=1">'
+      +'<title>画像を保存</title>'
+      +'<style>'
+      +'body{margin:0;background:#111;display:flex;flex-direction:column;'
+      +'align-items:center;justify-content:center;min-height:100vh;gap:20px;padding:16px;box-sizing:border-box;}'
+      +'img{max-width:100%;height:auto;border-radius:8px;}'
+      +'p{color:#fff;font-size:15px;text-align:center;line-height:1.8;margin:0;}'
+      +'b{color:#f5a623;}'
+      +'</style>'
+      +'</head><body>'
+      +'<img src="'+dataUrl+'">'
+      +'<p>画像を<b>長押し</b>して<br>「<b>写真に追加</b>」を選んで保存してください</p>'
+      +'</body></html>'
+    );
+    w.document.close();
+  }else{
+    alert('ポップアップがブロックされています。\nSafariのアドレスバー左のアイコン →「ポップアップを許可」してください。');
+  }
+}
+
+// ===== 写真ダウンロード（Android / iOS 両対応） =====
 document.getElementById('dlBtn').onclick=function(){
   var rc=document.getElementById('resCanvas');
-  rc.toBlob(function(blob){
-    var url=URL.createObjectURL(blob);
-    if(/iPad|iPhone|iPod/.test(navigator.userAgent)){
-      // iOS：新窓にimgタグで表示して長押し保存
-      var w=window.open('','_blank');
-      if(w){
-        w.document.write(
-          '<!DOCTYPE html><html><head>'
-          +'<meta name="viewport" content="width=device-width,initial-scale=1">'
-          +'<title>画像を保存</title>'
-          +'<style>body{margin:0;background:#111;display:flex;flex-direction:column;'
-          +'align-items:center;justify-content:center;min-height:100vh;gap:16px;}'
-          +'img{max-width:100%;height:auto;}'
-          +'p{color:#fff;font-size:14px;text-align:center;padding:0 16px;line-height:1.6;}</style>'
-          +'</head><body>'
-          +'<img src="'+url+'">'
-          +'<p>画像を長押し →「写真に追加」で保存できます</p>'
-          +'</body></html>'
-        );
-        w.document.close();
-      }else{
-        alert('ポップアップがブロックされています。\nSafariの設定でポップアップを許可してください。');
-      }
-    }else{
-      // Android / PC：aタグをDOMに追加してクリック
+  if(/iPad|iPhone|iPod/.test(navigator.userAgent)){
+    // iOS：DataURLを直接埋め込んで新窓表示→長押し保存
+    var dataUrl=rc.toDataURL('image/png');
+    openImageForIOS(dataUrl);
+  }else{
+    // Android / PC：Blob + aタグでDL
+    rc.toBlob(function(blob){
+      var url=URL.createObjectURL(blob);
       var a=document.createElement('a');
       a.download='frame_'+Date.now()+'.png';
       a.href=url;
       document.body.appendChild(a);
       a.click();
       setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
-    }
-  },'image/png');
+    },'image/png');
+  }
 };
 
 // ===== 動画モード =====
@@ -1247,33 +1257,17 @@ document.getElementById('cRecBtn').onclick=function(){
     snap.getContext('2d').drawImage(cpc,0,0);
     document.getElementById('cSnapBtn').onclick=function(){
       // スナップ画像もBlob経由でDL（iOS対応）
-      snap.toBlob(function(snapBlob){
-        var snapUrl=URL.createObjectURL(snapBlob);
-        if(/iPad|iPhone|iPod/.test(navigator.userAgent)){
-          var w=window.open('','_blank');
-          if(w){
-            w.document.write(
-              '<!DOCTYPE html><html><head>'
-              +'<meta name="viewport" content="width=device-width,initial-scale=1">'
-              +'<title>画像を保存</title>'
-              +'<style>body{margin:0;background:#111;display:flex;flex-direction:column;'
-              +'align-items:center;justify-content:center;min-height:100vh;gap:16px;}'
-              +'img{max-width:100%;height:auto;}'
-              +'p{color:#fff;font-size:14px;text-align:center;padding:0 16px;line-height:1.6;}</style>'
-              +'</head><body>'
-              +'<img src="'+snapUrl+'">'
-              +'<p>画像を長押し →「写真に追加」で保存できます</p>'
-              +'</body></html>'
-            );
-            w.document.close();
-          }
-        }else{
+      if(/iPad|iPhone|iPod/.test(navigator.userAgent)){
+        openImageForIOS(snap.toDataURL('image/png'));
+      }else{
+        snap.toBlob(function(snapBlob){
+          var snapUrl=URL.createObjectURL(snapBlob);
           var a=document.createElement('a');a.download='cam_frame_snap_'+Date.now()+'.png';
           a.href=snapUrl;
           document.body.appendChild(a);a.click();
           setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(snapUrl);},1000);
-        }
-      },'image/png');
+        },'image/png');
+      }
     };
     trackEvent('camera');
     setSt('cRecStbox','録画完了！','done');
