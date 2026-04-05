@@ -1435,17 +1435,23 @@ var SERVER_URL='https://kizan.jp/convert';
 var cLastBlob=null;
 
 async function convertToMp4Server(blob,stboxId,filename){
-  setSt(stboxId,'変換中...しばらくお待ちください','loading');
+  if(!blob){setSt(stboxId,'動画データがありません','err');return;}
+  setSt(stboxId,'変換中... ('+Math.round(blob.size/1024)+'KB)','loading');
   try{
     var formData=new FormData();
     formData.append('video',blob,'input.webm');
     var res=await fetch(SERVER_URL,{method:'POST',body:formData});
-    if(!res.ok) throw new Error('変換失敗');
+    if(!res.ok){
+      var errText=await res.text().catch(function(){return '';});
+      throw new Error('サーバーエラー '+res.status+': '+errText.slice(0,80));
+    }
     var mp4Blob=await res.blob();
+    if(!mp4Blob||mp4Blob.size<1000){
+      throw new Error('MP4データが不正です(size='+mp4Blob.size+')');
+    }
     var url=URL.createObjectURL(mp4Blob);
     if(isIOS){
-      // iOS：Web Share API or モーダル
-      setSt(stboxId,'変換完了！ファイルアプリのダウンロードに保存されます','done');
+      setSt(stboxId,'変換完了！','done');
       openVideoForIOS(url, mp4Blob);
     }else{
       var a=document.createElement('a');
