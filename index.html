@@ -203,7 +203,14 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
         <div class="cb">
           <canvas id="resCanvas"></canvas>
           <button class="dlbtn" id="dlBtn">⬇ 画像をダウンロード</button>
-          <p id="iosSaveHint" style="display:none;font-size:11px;color:var(--text2);text-align:center;margin-top:6px;">iPhoneは長押し →「写真に追加」で保存</p>
+          <div id="iosSaveHint" style="display:none;margin-top:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--rs);border-left:3px solid var(--accent);">
+            <p style="font-size:12px;color:var(--text2);line-height:2;margin:0;">
+              📱 <b style="color:var(--text);">iPhoneの保存方法</b><br>
+              ① ボタンを押す → 画像が表示されます<br>
+              ② 画像を<b style="color:var(--accent);">長押し</b><br>
+              ③「<b style="color:var(--accent);">"写真"に保存</b>」をタップ
+            </p>
+          </div>
           <button class="rtbtn" id="rtBtn">↩ 調整に戻る</button>
         </div>
       </div>
@@ -417,7 +424,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
 <!-- iOS用 画像保存モーダル -->
 <div id="iosModal">
   <img id="iosModalImg" src="" alt="保存する画像">
-  <p>① 画像を<b>長押し</b><br>② 「<b>写真に追加</b>」をタップ</p>
+  <p>① 画像を<b>長押し</b><br>②「<b>"写真"に保存</b>」をタップ</p>
   <button id="iosModalClose">✕ 閉じる</button>
 </div>
 <script>
