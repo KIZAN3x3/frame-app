@@ -309,6 +309,14 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
           <button class="dlbtn" id="vDlBtn" style="margin-top:10px;">⬇ 動画をダウンロード（WebM）</button>
           <button class="dlbtn" id="vMp4Btn" style="border-color:var(--green);color:var(--green);margin-top:8px;">🎬 MP4に変換してDL（インスタ・X対応）</button>
           <div class="stbox" id="vMp4Stbox"></div>
+          <div id="vIosSaveHint" style="display:none;margin-top:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--rs);border-left:3px solid var(--green);">
+            <p style="font-size:12px;color:var(--text2);line-height:2;margin:0;">
+              📱 <b style="color:var(--text);">iPhoneの保存方法</b><br>
+              ① 「MP4に変換してDL」を押す<br>
+              ② 変換完了後、動画を<b style="color:var(--green);">長押し</b><br>
+              ③「<b style="color:var(--green);">ビデオを保存</b>」をタップ
+            </p>
+          </div>
           <button class="rtbtn" id="vRtBtn">↩ やり直す</button>
         </div>
       </div>
@@ -421,18 +429,27 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
 
 </div>
 
-<!-- iOS用 画像保存モーダル -->
+<!-- iOS用 画像・動画保存モーダル -->
 <div id="iosModal">
-  <img id="iosModalImg" src="" alt="保存する画像">
-  <p>① 画像を<b>長押し</b><br>②「<b>"写真"に保存</b>」をタップ</p>
+  <img id="iosModalImg" src="" alt="保存する画像" style="display:none;">
+  <video id="iosModalVideo" controls playsinline style="display:none;max-width:100%;max-height:55vh;border-radius:8px;"></video>
+  <p id="iosModalMsg">① 画像を<b>長押し</b><br>②「<b>"写真"に保存</b>」をタップ</p>
   <button id="iosModalClose">✕ 閉じる</button>
 </div>
 <script>
 // ===== iOS判定 =====
 var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
 if(isIOS){
+  // 写真モード：保存ヒント表示
   var h=document.getElementById('iosSaveHint');
   if(h)h.style.display='block';
+  // 動画モード：WebMボタン非表示・MP4ヒント表示・MP4ボタン強調
+  var vdl=document.getElementById('vDlBtn');
+  if(vdl)vdl.style.display='none';
+  var vh=document.getElementById('vIosSaveHint');
+  if(vh)vh.style.display='block';
+  var vmp4=document.getElementById('vMp4Btn');
+  if(vmp4){vmp4.style.borderColor='var(--green)';vmp4.style.fontSize='15px';vmp4.style.padding='16px';}
 }
 
 // ===== タブ切り替え =====
@@ -773,13 +790,29 @@ document.getElementById('rtBtn').onclick=function(){
   window.scrollTo({top:document.getElementById('adjSection').offsetTop-10,behavior:'smooth'});
 };
 
-// ===== iOS用：同一ページ内モーダルで画像表示（長押し保存） =====
+// ===== iOS用：同一ページ内モーダルで画像・動画表示 =====
 document.getElementById('iosModalClose').onclick=function(){
-  document.getElementById('iosModal').classList.remove('show');
-  document.getElementById('iosModalImg').src='';
+  var m=document.getElementById('iosModal');
+  m.classList.remove('show');
+  var vi=document.getElementById('iosModalVideo');
+  vi.pause();vi.src='';vi.style.display='none';
+  var im=document.getElementById('iosModalImg');
+  im.src='';im.style.display='none';
 };
 function openImageForIOS(dataUrl){
-  document.getElementById('iosModalImg').src=dataUrl;
+  var vi=document.getElementById('iosModalVideo');
+  vi.style.display='none';vi.pause();vi.src='';
+  var im=document.getElementById('iosModalImg');
+  im.src=dataUrl;im.style.display='block';
+  document.getElementById('iosModalMsg').innerHTML='① 画像を<b>長押し</b><br>②「<b>"写真"に保存</b>」をタップ';
+  document.getElementById('iosModal').classList.add('show');
+}
+function openVideoForIOS(blobUrl){
+  var im=document.getElementById('iosModalImg');
+  im.src='';im.style.display='none';
+  var vi=document.getElementById('iosModalVideo');
+  vi.src=blobUrl;vi.style.display='block';
+  document.getElementById('iosModalMsg').innerHTML='① 動画を<b>長押し</b><br>②「<b>ビデオを保存</b>」をタップ';
   document.getElementById('iosModal').classList.add('show');
 }
 
@@ -1360,12 +1393,18 @@ async function convertToMp4Server(blob,stboxId,filename){
     if(!res.ok) throw new Error('変換失敗');
     var mp4Blob=await res.blob();
     var url=URL.createObjectURL(mp4Blob);
-    var a=document.createElement('a');
-    a.download=filename+'_'+Date.now()+'.mp4';
-    a.href=url;
-    document.body.appendChild(a);a.click();
-    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
-    setSt(stboxId,'MP4変換完了！','done');
+    if(isIOS){
+      // iOS：モーダルで動画を表示して長押し保存
+      openVideoForIOS(url);
+      setSt(stboxId,'変換完了！動画を長押しして保存してください','done');
+    }else{
+      var a=document.createElement('a');
+      a.download=filename+'_'+Date.now()+'.mp4';
+      a.href=url;
+      document.body.appendChild(a);a.click();
+      setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+      setSt(stboxId,'MP4変換完了！','done');
+    }
   }catch(e){
     setSt(stboxId,'変換失敗：'+e.message,'err');
   }
