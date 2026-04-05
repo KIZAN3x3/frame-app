@@ -438,7 +438,8 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
 </div>
 <script>
 // ===== iOS判定 =====
-var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
+// iPadOS13以降はUAにiPadが含まれないためタッチ判定を併用
+var isIOS=(/iPad|iPhone|iPod/.test(navigator.userAgent)||('ontouchend' in document&&navigator.platform==='MacIntel'))&&!window.MSStream;
 if(isIOS){
   // 写真モード：保存ヒント表示
   var h=document.getElementById('iosSaveHint');
@@ -819,7 +820,7 @@ function openVideoForIOS(blobUrl){
 // ===== 写真ダウンロード（Android / iOS 両対応） =====
 document.getElementById('dlBtn').onclick=function(){
   var rc=document.getElementById('resCanvas');
-  if(/iPad|iPhone|iPod/.test(navigator.userAgent)){
+  if(isIOS){
     // iOS：DataURLを直接埋め込んで新窓表示→長押し保存
     var dataUrl=rc.toDataURL('image/png');
     openImageForIOS(dataUrl);
@@ -1301,7 +1302,7 @@ document.getElementById('cRecBtn').onclick=function(){
     snap.getContext('2d').drawImage(cpc,0,0);
     document.getElementById('cSnapBtn').onclick=function(){
       // スナップ画像もBlob経由でDL（iOS対応）
-      if(/iPad|iPhone|iPod/.test(navigator.userAgent)){
+      if(isIOS){
         openImageForIOS(snap.toDataURL('image/png'));
       }else{
         snap.toBlob(function(snapBlob){
