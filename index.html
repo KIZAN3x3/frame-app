@@ -1254,17 +1254,41 @@ function setupCamGesture(){
   },{passive:false});
 }
 
+var cIntervalId=null; // 録画中の固定fps描画用
 function startCamPreviewLoop(){
   if(cAnimFrame)cancelAnimationFrame(cAnimFrame);
+  if(cIntervalId){clearInterval(cIntervalId);cIntervalId=null;}
   function loop(){
     if(cpc.width>0&&cpc.height>0) drawCamFrame(cpcCtx,cpc.width,cpc.height);
     cAnimFrame=requestAnimationFrame(loop);
   }
   loop();
 }
+function startCamRecordLoop(fps, noFrameCanvas, noFrameCtx, getNoFrameActive){
+  // 録画中はsetIntervalで固定fps描画（captureStreamと同期させる）
+  if(cAnimFrame){cancelAnimationFrame(cAnimFrame);cAnimFrame=null;}
+  if(cIntervalId){clearInterval(cIntervalId);cIntervalId=null;}
+  var interval=Math.round(1000/fps);
+  cIntervalId=setInterval(function(){
+    if(cpc.width>0&&cpc.height>0){
+      drawCamFrame(cpcCtx,cpc.width,cpc.height);
+      if(getNoFrameActive()&&noFrameCanvas.width>0){
+        var saved=cfImg;cfImg=null;
+        drawCamFrame(noFrameCtx,noFrameCanvas.width,noFrameCanvas.height);
+        cfImg=saved;
+      }
+    }
+  },interval);
+}
+function stopCamRecordLoop(){
+  if(cIntervalId){clearInterval(cIntervalId);cIntervalId=null;}
+  // 録画終了後はrAFプレビューに戻す
+  startCamPreviewLoop();
+}
 
 function stopCamera(){
   if(cAnimFrame){cancelAnimationFrame(cAnimFrame);cAnimFrame=null;}
+  if(cIntervalId){clearInterval(cIntervalId);cIntervalId=null;}
   if(cMediaRec&&cMediaRec.state==='recording'){cMediaRec.stop();}
   if(camStream){camStream.getVideoTracks().forEach(function(t){t.stop();});camStream=null;}
   if(camAudioStream){camAudioStream.getTracks().forEach(function(t){t.stop();});camAudioStream=null;}
@@ -1353,34 +1377,15 @@ document.getElementById('cRecBtn').onclick=function(){
     cNoFrameVideoUrl=URL.createObjectURL(blob);
   };
 
-  // noFrameCanvasはプレビューループ内で一緒に描画（別ループ不要）
-  var origDrawCam=drawCamFrame;
+  // 録画中はsetInterval固定fpsで描画（captureStreamと同期）
   var noFrameActive=true;
   var _origStop=cMediaRec.onstop;
   cMediaRec.onstop=function(){
     noFrameActive=false;
+    stopCamRecordLoop(); // 録画終了→rAFプレビューに戻す
     _origStop.call(this);
   };
-
-  // プレビューループを拡張してnoFrameCanvasも同時描画
-  var _origLoop=cAnimFrame;
-  var _origStartLoop=startCamPreviewLoop;
-  startCamPreviewLoop=function(){
-    if(cAnimFrame)cancelAnimationFrame(cAnimFrame);
-    function loop(){
-      if(cpc.width>0&&cpc.height>0){
-        drawCamFrame(cpcCtx,cpc.width,cpc.height);
-        if(noFrameActive&&noFrameCanvas.width>0){
-          var saved=cfImg;cfImg=null;
-          drawCamFrame(noFrameCtx,noFrameCanvas.width,noFrameCanvas.height);
-          cfImg=saved;
-        }
-      }
-      cAnimFrame=requestAnimationFrame(loop);
-    }
-    loop();
-  };
-  startCamPreviewLoop();
+  startCamRecordLoop(REC_FPS, noFrameCanvas, noFrameCtx, function(){return noFrameActive;});
 
   cMediaRec.start(50); // チャンク間隔小さめで音ズレ防止
   cNoFrameRec.start(50);
