@@ -415,11 +415,11 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
         <div class="ch"><div class="num ok">✓</div><span class="ct">録画完了！</span></div>
         <div class="cb">
           <canvas id="cSnapCanvas" class="preview-canvas hidden"></canvas>
-          <button class="dlbtn" id="cVideoDlBtn" style="margin-top:0">⬇ 動画をダウンロード（WebM）</button>
-          <button class="dlbtn" id="cMp4Btn" style="border-color:var(--green);color:var(--green);margin-top:8px;">🎬 MP4に変換してDL</button>
+          <button class="dlbtn" id="cMp4Btn" style="margin-top:0;font-size:15px;padding:16px;">🎬 動画をダウンロード（MP4）</button>
           <div class="stbox" id="cMp4Stbox"></div>
+          <button class="dlbtn" id="cVideoDlBtn" style="border-color:var(--text2);color:var(--text2);margin-top:8px;font-size:12px;">⬇ WebMでDL（変換できない場合）</button>
           <button class="dlbtn" id="cSnapBtn" style="border-color:var(--green);color:var(--green);margin-top:8px">📸 静止画として保存（PNG・枠あり）</button>
-          <button class="dlbtn" id="cVideoNoFrameBtn" style="border-color:var(--text2);color:var(--text2);margin-top:8px">🎬 動画をダウンロード（WebM・枠なし）</button>
+          <button class="dlbtn" id="cVideoNoFrameBtn" style="border-color:var(--text2);color:var(--text2);margin-top:8px;font-size:12px;">🎬 WebMでDL（枠なし）</button>
           <button class="rtbtn" id="cRtBtn">↩ カメラに戻る</button>
         </div>
       </div>
@@ -440,18 +440,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
 // ===== iOS判定 =====
 // iPadOS13以降はUAにiPadが含まれないためタッチ判定を併用
 var isIOS=(/iPad|iPhone|iPod/.test(navigator.userAgent)||('ontouchend' in document&&navigator.platform==='MacIntel'))&&!window.MSStream;
-if(isIOS){
-  // 写真モード：保存ヒント表示
-  var h=document.getElementById('iosSaveHint');
-  if(h)h.style.display='block';
-  // 動画モード：WebMボタン非表示・MP4ヒント表示・MP4ボタン強調
-  var vdl=document.getElementById('vDlBtn');
-  if(vdl)vdl.style.display='none';
-  var vh=document.getElementById('vIosSaveHint');
-  if(vh)vh.style.display='block';
-  var vmp4=document.getElementById('vMp4Btn');
-  if(vmp4){vmp4.style.borderColor='var(--green)';vmp4.style.fontSize='15px';vmp4.style.padding='16px';}
-}
+// iOSの場合は各セクション表示時にヒントを出す（hidden内では設定不可のため）
 
 // ===== タブ切り替え =====
 function trackEvent(type){
@@ -783,6 +772,11 @@ document.getElementById('applyBtn').onclick=function(){
   trackEvent('photo');
   var rc=document.getElementById('resCanvas');rc.width=outW;rc.height=outH;rc.getContext('2d').drawImage(ac,0,0);
   var resSec=document.getElementById('resSection');resSec.classList.remove('hidden');
+  // iOSのときヒント表示（hidden解除後に実行）
+  if(isIOS){
+    var h=document.getElementById('iosSaveHint');
+    if(h)h.style.display='block';
+  }
   window.scrollTo({top:resSec.offsetTop-10,behavior:'smooth'});
 };
 
@@ -1034,6 +1028,15 @@ document.getElementById('vRecBtn').onclick=function(){
     document.getElementById('vRecBtn').textContent='⏺ 録画して合成';
     var resSec=document.getElementById('vResSection');
     resSec.classList.remove('hidden');
+    // iOSのときヒント表示・WebMボタン非表示
+    if(isIOS){
+      var vdl=document.getElementById('vDlBtn');
+      if(vdl)vdl.style.display='none';
+      var vhint=document.getElementById('vIosSaveHint');
+      if(vhint)vhint.style.display='block';
+      var vmp4=document.getElementById('vMp4Btn');
+      if(vmp4){vmp4.style.fontSize='15px';vmp4.style.padding='16px';}
+    }
     window.scrollTo({top:resSec.offsetTop-10,behavior:'smooth'});
   };
 
@@ -1296,18 +1299,21 @@ document.getElementById('cRecBtn').onclick=function(){
   cMediaRec.onstop=function(){
     var blob=new Blob(cRecChunks,{type:mimeType});
     cLastBlob=blob;
-    var url=URL.createObjectURL(blob);
+
+    // WebMフォールバック用DL
+    var webmUrl=URL.createObjectURL(blob);
     document.getElementById('cVideoDlBtn').onclick=function(){
       var a=document.createElement('a');a.download='cam_frame_'+Date.now()+'.webm';
-      a.href=url;
+      a.href=webmUrl;
       document.body.appendChild(a);a.click();
       setTimeout(function(){document.body.removeChild(a);},1000);
     };
+
+    // スナップ
     var snap=document.getElementById('cSnapCanvas');
     snap.width=cpc.width;snap.height=cpc.height;
     snap.getContext('2d').drawImage(cpc,0,0);
     document.getElementById('cSnapBtn').onclick=function(){
-      // スナップ画像もBlob経由でDL（iOS対応）
       if(isIOS){
         openImageForIOS(snap.toDataURL('image/png'));
       }else{
@@ -1320,12 +1326,17 @@ document.getElementById('cRecBtn').onclick=function(){
         },'image/png');
       }
     };
+
     trackEvent('camera');
     setSt('cRecStbox','録画完了！','done');
     var resSec=document.getElementById('cResSection');
     resSec.classList.remove('hidden');
     addCamHistory(blob,snap.toDataURL('image/png'));
     window.scrollTo({top:resSec.offsetTop-10,behavior:'smooth'});
+
+    // 録画停止後に自動でMP4変換開始
+    setSt('cMp4Stbox','MP4に変換中…しばらくお待ちください','loading');
+    convertToMp4Server(blob,'cMp4Stbox','cam_frame');
   };
 
   var noFrameCanvas=document.createElement('canvas');
@@ -1371,8 +1382,8 @@ document.getElementById('cRecBtn').onclick=function(){
   };
   startCamPreviewLoop();
 
-  cMediaRec.start(200);
-  cNoFrameRec.start(200);
+  cMediaRec.start(50); // チャンク間隔小さめで音ズレ防止
+  cNoFrameRec.start(50);
   cRecStartTime=Date.now();
   var self=this;
   self.textContent='⏹ 録画停止';self.classList.add('pri');
