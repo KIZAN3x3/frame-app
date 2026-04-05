@@ -327,6 +327,11 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
   <!-- ========== カメラモード ========== -->
   <div id="cameraMode" class="hidden">
     <div id="cameraModeContent">
+    <!-- iOS非対応警告（iOSのときJSで表示） -->
+    <div id="cIosWarn" style="display:none;margin-bottom:10px;padding:12px 14px;background:rgba(239,68,68,0.12);border:1px solid var(--red);border-radius:var(--r);">
+      <p style="font-size:13px;color:var(--red);font-weight:700;margin-bottom:4px;">⚠️ iPad / iPhone では録画機能は利用できません</p>
+      <p style="font-size:12px;color:var(--text2);line-height:1.7;">カメラ映像へのフレーム合成録画はAndroidまたはPCのChromeをご利用ください。<br>写真への合成は「📷 写真」タブをご利用ください。</p>
+    </div>
     <div class="card">
       <div class="ch"><div class="num" id="cn1">1</div><span class="ct">枠画像</span></div>
       <div class="cb">
@@ -463,6 +468,11 @@ function switchTab(mode){
   });
   if(typeof renderAllPresets==='function') renderAllPresets();
   if(mode!=='camera') stopCamera();
+  // カメラタブに切り替えたときiOS警告を表示
+  if(mode==='camera'){
+    var warn=document.getElementById('cIosWarn');
+    if(warn) warn.style.display=isIOS?'block':'none';
+  }
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -1018,9 +1028,12 @@ document.getElementById('vRecBtn').onclick=function(){
   }
   var stream=combined;
 
+  // iOSはmp4、AndroidはwebmでMediaRecorder
   var mimeType='video/webm;codecs=vp9';
   if(!MediaRecorder.isTypeSupported(mimeType))mimeType='video/webm;codecs=vp8';
   if(!MediaRecorder.isTypeSupported(mimeType))mimeType='video/webm';
+  if(!MediaRecorder.isTypeSupported(mimeType))mimeType='video/mp4;codecs=h264';
+  if(!MediaRecorder.isTypeSupported(mimeType))mimeType='video/mp4';
   vMediaRec=new MediaRecorder(stream,{mimeType:mimeType,videoBitsPerSecond:8000000});
   vMediaRec.ondataavailable=function(e){if(e.data&&e.data.size>0)vRecChunks.push(e.data);};
   vMediaRec.onstop=function(){
@@ -1330,6 +1343,8 @@ document.getElementById('cRecBtn').onclick=function(){
   var mimeType='video/webm;codecs=vp9';
   if(!MediaRecorder.isTypeSupported(mimeType))mimeType='video/webm;codecs=vp8';
   if(!MediaRecorder.isTypeSupported(mimeType))mimeType='video/webm';
+  if(!MediaRecorder.isTypeSupported(mimeType))mimeType='video/mp4;codecs=h264';
+  if(!MediaRecorder.isTypeSupported(mimeType))mimeType='video/mp4';
   cMediaRec=new MediaRecorder(combined,{mimeType:mimeType,videoBitsPerSecond:4000000});
   cMediaRec.ondataavailable=function(e){if(e.data&&e.data.size>0)cRecChunks.push(e.data);};
   cMediaRec.onstop=function(){
@@ -1462,12 +1477,37 @@ async function convertToMp4Server(blob,stboxId,filename){
       setSt(stboxId,'MP4変換完了！','done');
     }
   }catch(e){
-    setSt(stboxId,'変換失敗：'+e.message,'err');
+    // 変換失敗時はWebMをそのままDLさせる
+    setSt(stboxId,'変換失敗（'+e.message+'）→ WebMでDLします','err');
+    if(blob){
+      setTimeout(function(){
+        var fallbackUrl=URL.createObjectURL(blob);
+        var a=document.createElement('a');
+        a.download=filename+'_'+Date.now()+'.webm';
+        a.href=fallbackUrl;
+        document.body.appendChild(a);a.click();
+        setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(fallbackUrl);},1000);
+      },1500);
+    }
   }
 }
 
 document.getElementById('vMp4Btn').onclick=async function(){
   if(!vTrimBlob){setSt('vMp4Stbox','先に動画を合成してください','err');return;}
+  // すでにMP4で録画されていればそのままDL
+  if(vTrimBlob.type&&vTrimBlob.type.indexOf('mp4')!==-1){
+    var url=URL.createObjectURL(vTrimBlob);
+    if(isIOS){
+      setSt('vMp4Stbox','完了！','done');
+      openVideoForIOS(url, vTrimBlob);
+    }else{
+      var a=document.createElement('a');a.download='frame_video_'+Date.now()+'.mp4';
+      a.href=url;document.body.appendChild(a);a.click();
+      setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+      setSt('vMp4Stbox','MP4でDL完了！','done');
+    }
+    return;
+  }
   await convertToMp4Server(vTrimBlob,'vMp4Stbox','frame_video');
 };
 
