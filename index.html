@@ -205,7 +205,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
           <button class="dlbtn" id="dlBtn">⬇ 画像をダウンロード</button>
           <div id="iosSaveHint" style="display:none;margin-top:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--rs);border-left:3px solid var(--accent);">
             <p style="font-size:12px;color:var(--text2);line-height:2;margin:0;">
-              📱 <b style="color:var(--text);">iPhoneの保存方法</b><br>
+              📱 <b style="color:var(--text);">iPad / iPhoneの保存方法</b><br>
               ① ボタンを押す → 画像が表示されます<br>
               ② 画像を<b style="color:var(--accent);">長押し</b><br>
               ③「<b style="color:var(--accent);">"写真"に保存</b>」をタップ
@@ -311,10 +311,10 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
           <div class="stbox" id="vMp4Stbox"></div>
           <div id="vIosSaveHint" style="display:none;margin-top:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--rs);border-left:3px solid var(--green);">
             <p style="font-size:12px;color:var(--text2);line-height:2;margin:0;">
-              📱 <b style="color:var(--text);">iPhoneの保存方法</b><br>
+              📱 <b style="color:var(--text);">iPad / iPhoneの保存方法</b><br>
               ① 「MP4に変換してDL」を押す<br>
-              ② 変換完了後、動画を<b style="color:var(--green);">長押し</b><br>
-              ③「<b style="color:var(--green);">ビデオを保存</b>」をタップ
+              ②「<b style="color:var(--green);">ファイルアプリ</b>」のダウンロードに保存されます<br>
+              ③ 写真アプリへ移したい場合は案内が表示されます
             </p>
           </div>
           <button class="rtbtn" id="vRtBtn">↩ やり直す</button>
@@ -802,26 +802,24 @@ function openImageForIOS(dataUrl){
   document.getElementById('iosModalMsg').innerHTML='① 画像を<b>長押し</b><br>②「<b>"写真"に保存</b>」をタップ';
   document.getElementById('iosModal').classList.add('show');
 }
-async function openVideoForIOS(blobUrl, blob){
-  // Web Share API で動画を共有→写真アプリに保存
-  if(navigator.share && navigator.canShare){
-    try{
-      var file=new File([blob],'frame_video.mp4',{type:'video/mp4'});
-      if(navigator.canShare({files:[file]})){
-        await navigator.share({files:[file],title:'合成動画'});
-        return;
-      }
-    }catch(e){
-      if(e.name==='AbortError') return; // ユーザーがキャンセル
-    }
-  }
-  // Web Share API 非対応の場合はモーダルで動画表示
+function openVideoForIOS(blobUrl, blob){
+  // iOSはBlobURLをaタグでDLするとファイルアプリに保存される
+  var a=document.createElement('a');
+  a.href=blobUrl;
+  a.download='frame_video.mp4';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){document.body.removeChild(a);},1000);
+  // モーダルで補足説明
   var im=document.getElementById('iosModalImg');
   im.src='';im.style.display='none';
   var vi=document.getElementById('iosModalVideo');
-  vi.src=blobUrl;vi.style.display='block';
+  vi.src='';vi.style.display='none';
   document.getElementById('iosModalMsg').innerHTML=
-    '動画を再生後、右下の<b>共有ボタン</b>をタップ<br>→「<b>ビデオを保存</b>」で保存';
+    '動画が<b>ファイルアプリ</b>の「ダウンロード」に保存されました<br><br>'
+    +'写真アプリへ移したい場合：<br>'
+    +'ファイルアプリ → ダウンロード → 動画を長押し<br>'
+    +'→「<b>写真に保存</b>」をタップ';
   document.getElementById('iosModal').classList.add('show');
 }
 
@@ -1447,7 +1445,7 @@ async function convertToMp4Server(blob,stboxId,filename){
     var url=URL.createObjectURL(mp4Blob);
     if(isIOS){
       // iOS：Web Share API or モーダル
-      setSt(stboxId,'変換完了！共有メニューから保存してください','done');
+      setSt(stboxId,'変換完了！ファイルアプリのダウンロードに保存されます','done');
       openVideoForIOS(url, mp4Blob);
     }else{
       var a=document.createElement('a');
