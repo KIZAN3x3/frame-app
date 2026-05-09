@@ -6,7 +6,6 @@
 <title>フレーム合成アプリ</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&family=Yomogi&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#0f0f0f;--surface:#1a1a1a;--surface2:#242424;--border:#2e2e2e;--text:#f0f0f0;--text2:#888;--accent:#e8772e;--accent2:#f5a623;--green:#22c55e;--red:#ef4444;--r:14px;--rs:10px;}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -66,17 +65,6 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
 #iosModal b{color:#f5a623;}
 #iosModalClose{padding:12px 32px;border-radius:20px;border:1px solid rgba(255,255,255,0.4);background:transparent;color:#fff;font-size:14px;cursor:pointer;}
 .preview-canvas{display:block;width:100%;height:auto;border-radius:var(--rs);}
-/* テキストUI */
-.text-tool-wrap{margin-top:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--rs);}
-.text-tool-wrap textarea{width:100%;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:14px;resize:none;height:60px;line-height:1.5;}
-.text-tool-wrap textarea:focus{outline:none;border-color:var(--accent);}
-.trow{display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap;}
-.trow label{font-size:11px;color:var(--text2);white-space:nowrap;}
-.trow select{background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;padding:4px 6px;flex:1;min-width:0;}
-.trow input[type=color]{width:30px;height:26px;padding:2px;border:1px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;flex-shrink:0;}
-.trow input[type=range]{flex:1;accent-color:var(--accent);min-width:60px;}
-.tbtn{padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:11px;cursor:pointer;white-space:nowrap;flex-shrink:0;}
-.tbtn.on{border-color:var(--accent);color:var(--accent);background:rgba(232,119,46,.1);}
 </style>
 </head>
 <body>
@@ -156,38 +144,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
         <div style="display:flex;gap:6px;margin-top:8px;">
           <button class="abtn" id="sSavePresetBtn" style="flex:1;font-size:11px;padding:8px;" disabled>＋ スタンプをプリセット保存</button>
         </div>
-        <!-- テキスト -->
-        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
-          <p style="font-size:11px;color:var(--text2);margin-bottom:6px;">💬 テキスト（任意）</p>
-          <div class="text-tool-wrap">
-            <textarea id="pTextInput" placeholder="ここにテキストを入力…"></textarea>
-            <div class="trow">
-              <label>フォント</label>
-              <select id="pTextFont">
-                <option value="'Noto Sans JP',sans-serif">ゴシック</option>
-                <option value="'Noto Serif JP',serif">明朝</option>
-                <option value="'Yomogi',cursive">手書き</option>
-              </select>
-            </div>
-            <div class="trow">
-              <label>サイズ</label>
-              <input type="range" id="pTextSize" min="16" max="200" value="60" step="2">
-              <span id="pTextSizeVal" style="font-size:11px;color:var(--text2);width:28px;text-align:right;">60</span>
-            </div>
-            <div class="trow">
-              <label>色</label>
-              <input type="color" id="pTextColor" value="#ffffff">
-              <button class="tbtn" id="pTextBold">太字</button>
-              <button class="tbtn" id="pTextStroke">縁取り</button>
-              <input type="color" id="pTextStrokeColor" value="#000000" title="縁取り色">
-              <button class="tbtn" id="pTextShadow">影</button>
-            </div>
-            <div style="display:flex;gap:6px;margin-top:8px;">
-              <button class="abtn pri" id="pTextApplyBtn" style="flex:2;font-size:12px;padding:8px;">✓ テキストを配置・更新</button>
-              <button class="abtn" id="pTextClearBtn" style="flex:1;font-size:11px;padding:8px;">✕ 削除</button>
-            </div>
-          </div>
-        </div>
+
       </div>
     </div>
 
@@ -207,7 +164,6 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
             <div style="display:flex;gap:6px;">
               <button class="abtn on" id="adjTargetPhoto" style="flex:1;border-color:var(--accent);color:var(--accent);background:rgba(232,119,46,.1);">📷 写真</button>
               <button class="abtn" id="adjTargetStamp" style="flex:1;">🎨 スタンプ</button>
-              <button class="abtn" id="adjTargetText" style="flex:1;">💬 テキスト</button>
             </div>
           </div>
           <p class="hint" id="adjHint">📱 1本指ドラッグで移動 / 2本指ピンチで拡縮<br>💻 ドラッグで移動 / スクロールでズーム</p>
@@ -290,37 +246,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
         <div style="display:flex;gap:6px;margin-top:8px;">
           <button class="abtn" id="vsSavePresetBtn" style="flex:1;font-size:11px;padding:8px;" disabled>＋ スタンプをプリセット保存</button>
         </div>
-        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
-          <p style="font-size:11px;color:var(--text2);margin-bottom:6px;">💬 テキスト（任意）</p>
-          <div class="text-tool-wrap">
-            <textarea id="vTextInput" placeholder="ここにテキストを入力…"></textarea>
-            <div class="trow">
-              <label>フォント</label>
-              <select id="vTextFont">
-                <option value="'Noto Sans JP',sans-serif">ゴシック</option>
-                <option value="'Noto Serif JP',serif">明朝</option>
-                <option value="'Yomogi',cursive">手書き</option>
-              </select>
-            </div>
-            <div class="trow">
-              <label>サイズ</label>
-              <input type="range" id="vTextSize" min="16" max="200" value="60" step="2">
-              <span id="vTextSizeVal" style="font-size:11px;color:var(--text2);width:28px;text-align:right;">60</span>
-            </div>
-            <div class="trow">
-              <label>色</label>
-              <input type="color" id="vTextColor" value="#ffffff">
-              <button class="tbtn" id="vTextBold">太字</button>
-              <button class="tbtn" id="vTextStroke">縁取り</button>
-              <input type="color" id="vTextStrokeColor" value="#000000" title="縁取り色">
-              <button class="tbtn" id="vTextShadow">影</button>
-            </div>
-            <div style="display:flex;gap:6px;margin-top:8px;">
-              <button class="abtn pri" id="vTextApplyBtn" style="flex:2;font-size:12px;padding:8px;">✓ テキストを配置・更新</button>
-              <button class="abtn" id="vTextClearBtn" style="flex:1;font-size:11px;padding:8px;">✕ 削除</button>
-            </div>
-          </div>
-        </div>
+
       </div>
     </div>
     <div class="card">
@@ -339,7 +265,6 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
           <div style="display:flex;gap:6px;margin-top:8px;">
             <button class="abtn on" id="vAdjTargetVideo" style="flex:1;border-color:var(--accent);color:var(--accent);background:rgba(232,119,46,.1);">🎬 動画</button>
             <button class="abtn" id="vAdjTargetStamp" style="flex:1;">🎨 スタンプ</button>
-            <button class="abtn" id="vAdjTargetText" style="flex:1;">💬 テキスト</button>
           </div>
           <p class="hint" id="vAdjHint">📱 1本指ドラッグで移動 / 2本指ピンチで拡縮<br>💻 ドラッグで移動 / スクロールでズーム</p>
           <div class="aacts" style="margin-top:10px;">
@@ -565,41 +490,6 @@ function openVideoForIOS(blobUrl){
   document.getElementById('iosModal').classList.add('show');
 }
 
-// ===== テキスト描画ヘルパー =====
-function drawTextLayer(ctx, tObj){
-  if(!tObj.placed || !tObj.text) return;
-  var fontSize=Math.round(tObj.size * tObj.scale);
-  if(fontSize < 4) return;
-  ctx.save();
-  ctx.font=(tObj.bold?'bold ':'')+fontSize+'px '+tObj.font;
-  ctx.fillStyle=tObj.color;
-  ctx.textBaseline='middle';
-  ctx.textAlign='center';
-  if(tObj.shadow){
-    ctx.shadowColor='rgba(0,0,0,0.7)';
-    ctx.shadowBlur=fontSize*0.15;
-    ctx.shadowOffsetX=fontSize*0.05;
-    ctx.shadowOffsetY=fontSize*0.05;
-  }
-  var lines=tObj.text.split('\n');
-  var lineH=fontSize*1.35;
-  var totalH=lineH*(lines.length-1);
-  lines.forEach(function(line,i){
-    var tx=Math.round(tObj.x);
-    var ty=Math.round(tObj.y - totalH/2 + i*lineH);
-    if(tObj.stroke){
-      ctx.save();
-      ctx.shadowColor='transparent';
-      ctx.strokeStyle=tObj.strokeColor;
-      ctx.lineWidth=Math.max(2,fontSize*0.08);
-      ctx.lineJoin='round';
-      ctx.strokeText(line,tx,ty);
-      ctx.restore();
-    }
-    ctx.fillText(line,tx,ty);
-  });
-  ctx.restore();
-}
 
 // ===== 写真モード =====
 var pImg=null, fImg=null, sImg=null;
@@ -609,8 +499,6 @@ var sAdj={x:0,y:0,scale:1};
 var adjTarget='photo';
 var gestureSetup=false;
 
-// テキスト状態
-var pTextObj={text:'',font:"'Noto Sans JP',sans-serif",size:60,color:'#ffffff',bold:false,stroke:false,strokeColor:'#000000',shadow:false,x:0,y:0,scale:1,placed:false};
 
 var ac=document.getElementById('adjCanvas');
 var actx=ac.getContext('2d');
@@ -628,68 +516,25 @@ function drawPhoto(){
   actx.drawImage(pImg,Math.round(adj.x),Math.round(adj.y),Math.round(pImg.naturalWidth*adj.scale),Math.round(pImg.naturalHeight*adj.scale));
   actx.drawImage(fImg,0,0,ac.width,ac.height);
   if(sImg){actx.drawImage(sImg,Math.round(sAdj.x),Math.round(sAdj.y),Math.round(sImg.naturalWidth*sAdj.scale),Math.round(sImg.naturalHeight*sAdj.scale));}
-  drawTextLayer(actx,pTextObj);
 }
 
 // 操作対象切替
 function setAdjTarget(t){
   adjTarget=t;
-  ['photo','stamp','text'].forEach(function(k){
+  ['photo','stamp'].forEach(function(k){
     var el=document.getElementById('adjTarget'+k.charAt(0).toUpperCase()+k.slice(1));
     el.style.cssText='flex:1;'+(k===t?'border-color:var(--accent);color:var(--accent);background:rgba(232,119,46,.1);':'');
   });
-  var hints={photo:'📷 写真を操作中',stamp:'🎨 スタンプを操作中',text:'💬 テキストを操作中'};
+  var hints={photo:'📷 写真を操作中',stamp:'🎨 スタンプを操作中'};
   document.getElementById('adjHint').textContent=hints[t]+'：ドラッグで移動 / ピンチで拡縮';
 }
 document.getElementById('adjTargetPhoto').onclick=function(){setAdjTarget('photo');};
 document.getElementById('adjTargetStamp').onclick=function(){setAdjTarget('stamp');};
-document.getElementById('adjTargetText').onclick=function(){setAdjTarget('text');};
 
 function getPCurAdj(){
   if(adjTarget==='stamp')return sAdj;
-  if(adjTarget==='text')return pTextObj;
   return adj;
 }
-
-// テキスト配置・更新（adjSectionが開いていなくても値は保持）
-function syncPTextObj(){
-  pTextObj.text=document.getElementById('pTextInput').value;
-  pTextObj.font=document.getElementById('pTextFont').value;
-  pTextObj.size=parseInt(document.getElementById('pTextSize').value);
-  pTextObj.color=document.getElementById('pTextColor').value;
-  pTextObj.bold=document.getElementById('pTextBold').classList.contains('on');
-  pTextObj.stroke=document.getElementById('pTextStroke').classList.contains('on');
-  pTextObj.strokeColor=document.getElementById('pTextStrokeColor').value;
-  pTextObj.shadow=document.getElementById('pTextShadow').classList.contains('on');
-  pTextObj.scale=1;
-}
-document.getElementById('pTextApplyBtn').onclick=function(){
-  var txt=document.getElementById('pTextInput').value;
-  if(!txt.trim()){showPresetToast('テキストを入力してください');return;}
-  syncPTextObj();
-  if(!pTextObj.placed){
-    // goBtn後にoutW/outHが確定しているのでそちらを使う。未確定なら仮値
-    var w=ac.width>0?ac.width:(fImg?fImg.naturalWidth:1080);
-    var h=ac.height>0?ac.height:(fImg?fImg.naturalHeight:1080);
-    pTextObj.x=w*0.5; pTextObj.y=h*0.5;
-    pTextObj.placed=true;
-  }
-  if(!document.getElementById('adjSection').classList.contains('hidden'))drawPhoto();
-  showPresetToast('テキストを配置しました');
-};
-document.getElementById('pTextClearBtn').onclick=function(){
-  pTextObj.text='';pTextObj.placed=false;
-  document.getElementById('pTextInput').value='';
-  if(!document.getElementById('adjSection').classList.contains('hidden'))drawPhoto();
-};
-document.getElementById('pTextSize').addEventListener('input',function(){
-  document.getElementById('pTextSizeVal').textContent=this.value;
-  pTextObj.size=parseInt(this.value);
-  if(pTextObj.placed&&!document.getElementById('adjSection').classList.contains('hidden'))drawPhoto();
-});
-['pTextBold','pTextStroke','pTextShadow'].forEach(function(id){
-  document.getElementById(id).addEventListener('click',function(){this.classList.toggle('on');});
-});
 
 document.getElementById('goBtn').onclick=function(){
   outW=fImg.naturalWidth;outH=fImg.naturalHeight;
@@ -698,15 +543,8 @@ document.getElementById('goBtn').onclick=function(){
   adj={x:(outW-pImg.naturalWidth*s)/2,y:(outH-pImg.naturalHeight*s)/2,scale:s};
   adj.bx=adj.x;adj.by=adj.y;adj.bs=adj.bs=s;
   if(sImg){var ss=Math.min(outW,outH)*0.3/Math.max(sImg.naturalWidth,sImg.naturalHeight);sAdj={x:outW*0.65,y:outH*0.65,scale:ss};}
-  // テキストが配置済みなら位置を枠サイズに合わせてリセット
-  if(pTextObj.placed){pTextObj.x=outW*0.5;pTextObj.y=outH*0.5;pTextObj.scale=1;}
-  // 未配置でも値をsyncしておく（adjSection開いた後にApplyせずドラッグできるように）
-  syncPTextObj();
-  // テキスト未配置の場合も初期座標を設定しておく（0,0ドラッグ防止）
-  if(!pTextObj.placed&&pTextObj.text.trim()){pTextObj.x=outW*0.5;pTextObj.y=outH*0.5;}
   setAdjTarget('photo');
   document.getElementById('adjTargetStamp').disabled=!sImg;
-  document.getElementById('adjTargetText').disabled=!pTextObj.text.trim();
   drawPhoto();
   var adjSec=document.getElementById('adjSection');adjSec.classList.remove('hidden');
   document.getElementById('resSection').classList.add('hidden');
@@ -752,7 +590,6 @@ function setupPhotoGesture(){
 
 document.getElementById('resetBtn').onclick=function(){
   if(adjTarget==='stamp'&&sImg){sAdj={x:outW*0.65,y:outH*0.65,scale:Math.min(outW,outH)*0.3/Math.max(sImg.naturalWidth,sImg.naturalHeight)};}
-  else if(adjTarget==='text'){pTextObj.x=outW*0.5;pTextObj.y=outH*0.5;pTextObj.scale=1;}
   else{adj.x=adj.bx;adj.y=adj.by;adj.scale=adj.bs;}
   drawPhoto();
 };
@@ -815,7 +652,6 @@ document.getElementById('sClearBtn').onclick=function(){
 var vFile=null,vfImg=null,vsImg=null;
 var vAdj={x:0,y:0,scale:1},vsAdj={x:0,y:0,scale:1};
 var vAdjTarget='video';
-var vTextObj={text:'',font:"'Noto Sans JP',sans-serif",size:60,color:'#ffffff',bold:false,stroke:false,strokeColor:'#000000',shadow:false,x:0,y:0,scale:1,placed:false};
 var videoEl=document.getElementById('videoEl');
 var vpc=document.getElementById('vPreviewCanvas'),vpcCtx=vpc.getContext('2d');
 var vAnimFrame=null,vMediaRec=null,vRecChunks=[];
@@ -839,7 +675,6 @@ function drawVideoFrame(ctx,w,h){
   ctx.drawImage(videoEl,vAdj.x,vAdj.y,videoEl.videoWidth*vAdj.scale,videoEl.videoHeight*vAdj.scale);
   ctx.drawImage(vfImg,0,0,w,h);
   if(vsImg){ctx.drawImage(vsImg,Math.round(vsAdj.x),Math.round(vsAdj.y),Math.round(vsImg.naturalWidth*vsAdj.scale),Math.round(vsImg.naturalHeight*vsAdj.scale));}
-  drawTextLayer(ctx,vTextObj);
 }
 
 function resetVAdj(){
@@ -849,49 +684,20 @@ function resetVAdj(){
 
 function setVAdjTarget(t){
   vAdjTarget=t;
-  ['video','stamp','text'].forEach(function(k){
+  ['video','stamp'].forEach(function(k){
     var el=document.getElementById('vAdjTarget'+k.charAt(0).toUpperCase()+k.slice(1));
     el.style.cssText='flex:1;'+(k===t?'border-color:var(--accent);color:var(--accent);background:rgba(232,119,46,.1);':'');
   });
-  var hints={video:'🎬 動画を操作中',stamp:'🎨 スタンプを操作中',text:'💬 テキストを操作中'};
+  var hints={video:'🎬 動画を操作中',stamp:'🎨 スタンプを操作中'};
   document.getElementById('vAdjHint').textContent=hints[t]+'：ドラッグで移動 / ピンチで拡縮';
 }
 document.getElementById('vAdjTargetVideo').onclick=function(){setVAdjTarget('video');};
 document.getElementById('vAdjTargetStamp').onclick=function(){setVAdjTarget('stamp');};
-document.getElementById('vAdjTargetText').onclick=function(){setVAdjTarget('text');};
 
 function getVCurAdj(){
   if(vAdjTarget==='stamp')return vsAdj;
-  if(vAdjTarget==='text')return vTextObj;
   return vAdj;
 }
-
-// 動画テキスト
-function syncVTextObj(){
-  vTextObj.text=document.getElementById('vTextInput').value;
-  vTextObj.font=document.getElementById('vTextFont').value;
-  vTextObj.size=parseInt(document.getElementById('vTextSize').value);
-  vTextObj.color=document.getElementById('vTextColor').value;
-  vTextObj.bold=document.getElementById('vTextBold').classList.contains('on');
-  vTextObj.stroke=document.getElementById('vTextStroke').classList.contains('on');
-  vTextObj.strokeColor=document.getElementById('vTextStrokeColor').value;
-  vTextObj.shadow=document.getElementById('vTextShadow').classList.contains('on');
-  vTextObj.scale=1;
-}
-document.getElementById('vTextApplyBtn').onclick=function(){
-  var txt=document.getElementById('vTextInput').value;
-  if(!txt.trim()){showPresetToast('テキストを入力してください');return;}
-  syncVTextObj();
-  if(!vTextObj.placed){
-    var w=vpc.width>0?vpc.width:(vfImg?vfImg.naturalWidth:1080);
-    var h=vpc.height>0?vpc.height:(vfImg?vfImg.naturalHeight:1080);
-    vTextObj.x=w*0.5;vTextObj.y=h*0.5;vTextObj.placed=true;
-  }
-  showPresetToast('テキストを配置しました');
-};
-document.getElementById('vTextClearBtn').onclick=function(){vTextObj.text='';vTextObj.placed=false;document.getElementById('vTextInput').value='';};
-document.getElementById('vTextSize').addEventListener('input',function(){document.getElementById('vTextSizeVal').textContent=this.value;vTextObj.size=parseInt(this.value);});
-['vTextBold','vTextStroke','vTextShadow'].forEach(function(id){document.getElementById(id).addEventListener('click',function(){this.classList.toggle('on');});});
 
 // 動画スタンプ
 document.getElementById('vsIn').addEventListener('change',async function(e){
@@ -942,14 +748,9 @@ function startVideoPreviewLoop(){
 document.getElementById('vGoBtn').onclick=function(){
   function onMeta(){
     vpc.width=vfImg.naturalWidth;vpc.height=vfImg.naturalHeight;resetVAdj();
-    syncVTextObj();
     if(vsImg){vsAdj={x:vpc.width*0.65,y:vpc.height*0.65,scale:Math.min(vpc.width,vpc.height)*0.3/Math.max(vsImg.naturalWidth,vsImg.naturalHeight)};}
-    if(vTextObj.placed){vTextObj.x=vpc.width*0.5;vTextObj.y=vpc.height*0.5;vTextObj.scale=1;}
-    // テキスト未配置でも初期座標を設定しておく（0,0ドラッグ防止）
-    if(!vTextObj.placed&&vTextObj.text.trim()){vTextObj.x=vpc.width*0.5;vTextObj.y=vpc.height*0.5;}
     setVAdjTarget('video');
     document.getElementById('vAdjTargetStamp').disabled=!vsImg;
-    document.getElementById('vAdjTargetText').disabled=!vTextObj.text.trim();
     videoEl.play();setupVideoGesture();startVideoPreviewLoop();
     var sec=document.getElementById('vAdjSection');sec.classList.remove('hidden');
     document.getElementById('vResSection').classList.add('hidden');
