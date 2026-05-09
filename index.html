@@ -211,20 +211,7 @@ progress::-webkit-progress-value{background:var(--accent);border-radius:3px;}
             </div>
           </div>
           <p class="hint" id="adjHint">📱 1本指ドラッグで移動 / 2本指ピンチで拡縮<br>💻 ドラッグで移動 / スクロールでズーム</p>
-          <!-- 明るさ・コントラスト step=5 -->
-          <div style="margin-top:10px;padding:10px;background:var(--surface2);border-radius:var(--rs);">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-              <span style="font-size:11px;color:var(--text2);width:60px;">☀️ 明るさ</span>
-              <input type="range" id="brightnessSlider" min="0" max="200" value="100" step="5" style="flex:1;accent-color:var(--accent);">
-              <span style="font-size:11px;color:var(--text2);width:32px;text-align:right;" id="brightnessVal">100</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span style="font-size:11px;color:var(--text2);width:60px;">◑ コントラスト</span>
-              <input type="range" id="contrastSlider" min="0" max="200" value="100" step="5" style="flex:1;accent-color:var(--accent);">
-              <span style="font-size:11px;color:var(--text2);width:32px;text-align:right;" id="contrastVal">100</span>
-            </div>
-            <button class="abtn" id="filterResetBtn" style="width:100%;margin-top:8px;font-size:11px;padding:6px;">↩ フィルターリセット</button>
-          </div>
+
           <div class="aacts">
             <button class="abtn" id="resetBtn">↩ リセット</button>
             <button class="abtn pri" id="applyBtn">✓ これで合成する</button>
@@ -617,8 +604,6 @@ var outW=1080, outH=1080;
 var adj={x:0,y:0,scale:1,bx:0,by:0,bs:1};
 var sAdj={x:0,y:0,scale:1};
 var adjTarget='photo';
-var pBrightness=100, pContrast=100;
-var filteredPImg=null;
 var gestureSetup=false;
 
 // テキスト状態
@@ -629,57 +614,15 @@ var actx=ac.getContext('2d');
 
 document.getElementById('pIn').onchange=async function(e){
   var f=e.target.files[0];if(!f)return;
-  pImg=await loadImg(f);filteredPImg=null;
+  pImg=await loadImg(f);
   markZone('pArea','n1',pImg.src);checkPhotoReady();
-  pBrightness=100;pContrast=100;
-  document.getElementById('brightnessSlider').value=100;document.getElementById('contrastSlider').value=100;
-  document.getElementById('brightnessVal').textContent='100';document.getElementById('contrastVal').textContent='100';
 };
 function checkPhotoReady(){document.getElementById('goBtn').disabled=!(pImg&&fImg);}
 
-// フィルター：step=5なので発火回数が少ない。さらにデバウンス80ms
-function updateFilteredImage(){
-  if(!pImg){filteredPImg=null;return;}
-  var tmp=document.createElement('canvas');tmp.width=pImg.naturalWidth;tmp.height=pImg.naturalHeight;
-  var tc=tmp.getContext('2d');tc.drawImage(pImg,0,0);
-  if(pBrightness!==100||pContrast!==100){
-    var id=tc.getImageData(0,0,tmp.width,tmp.height),d=id.data;
-    var b=(pBrightness-100)/100,c=pContrast/100;
-    for(var i=0;i<d.length;i+=4){
-      d[i]  =Math.min(255,Math.max(0,((d[i]  /255-0.5)*c+0.5+b)*255));
-      d[i+1]=Math.min(255,Math.max(0,((d[i+1]/255-0.5)*c+0.5+b)*255));
-      d[i+2]=Math.min(255,Math.max(0,((d[i+2]/255-0.5)*c+0.5+b)*255));
-    }
-    tc.putImageData(id,0,0);
-  }
-  filteredPImg=tmp;
-}
-var filterTimer=null;
-function scheduleFilterUpdate(){
-  if(filterTimer)clearTimeout(filterTimer);
-  filterTimer=setTimeout(function(){filteredPImg=null;updateFilteredImage();drawPhoto();},80);
-}
-document.getElementById('brightnessSlider').addEventListener('input',function(){
-  pBrightness=parseInt(this.value);document.getElementById('brightnessVal').textContent=this.value;
-  if(pImg&&fImg)scheduleFilterUpdate();
-});
-document.getElementById('contrastSlider').addEventListener('input',function(){
-  pContrast=parseInt(this.value);document.getElementById('contrastVal').textContent=this.value;
-  if(pImg&&fImg)scheduleFilterUpdate();
-});
-document.getElementById('filterResetBtn').onclick=function(){
-  pBrightness=100;pContrast=100;filteredPImg=null;
-  document.getElementById('brightnessSlider').value=100;document.getElementById('contrastSlider').value=100;
-  document.getElementById('brightnessVal').textContent='100';document.getElementById('contrastVal').textContent='100';
-  if(pImg&&fImg)drawPhoto();
-};
-
 function drawPhoto(){
-  if(!filteredPImg)updateFilteredImage();
   actx.clearRect(0,0,ac.width,ac.height);
   // 固定レイヤー順：写真→枠→スタンプ→テキスト
-  var src=filteredPImg||pImg;
-  actx.drawImage(src,Math.round(adj.x),Math.round(adj.y),Math.round(pImg.naturalWidth*adj.scale),Math.round(pImg.naturalHeight*adj.scale));
+  actx.drawImage(pImg,Math.round(adj.x),Math.round(adj.y),Math.round(pImg.naturalWidth*adj.scale),Math.round(pImg.naturalHeight*adj.scale));
   actx.drawImage(fImg,0,0,ac.width,ac.height);
   if(sImg){actx.drawImage(sImg,Math.round(sAdj.x),Math.round(sAdj.y),Math.round(sImg.naturalWidth*sAdj.scale),Math.round(sImg.naturalHeight*sAdj.scale));}
   drawTextLayer(actx,pTextObj);
@@ -756,10 +699,12 @@ document.getElementById('goBtn').onclick=function(){
   if(pTextObj.placed){pTextObj.x=outW*0.1;pTextObj.y=outH*0.45;pTextObj.scale=1;}
   // 未配置でも値をsyncしておく（adjSection開いた後にApplyせずドラッグできるように）
   syncPTextObj();
+  // テキスト未配置の場合も初期座標を設定しておく（0,0ドラッグ防止）
+  if(!pTextObj.placed&&pTextObj.text.trim()){pTextObj.x=outW*0.1;pTextObj.y=outH*0.45;}
   setAdjTarget('photo');
   document.getElementById('adjTargetStamp').disabled=!sImg;
   document.getElementById('adjTargetText').disabled=!pTextObj.text.trim();
-  filteredPImg=null;drawPhoto();
+  drawPhoto();
   var adjSec=document.getElementById('adjSection');adjSec.classList.remove('hidden');
   document.getElementById('resSection').classList.add('hidden');
   if(!gestureSetup){setupPhotoGesture();gestureSetup=true;}
@@ -846,7 +791,7 @@ document.getElementById('pCamShootBtn').onclick=function(){
   if(pCamFacing==='user'){sctx.translate(snap.width,0);sctx.scale(-1,1);}
   sctx.drawImage(v,0,0);
   var dataUrl=snap.toDataURL('image/png');
-  var im=new Image();im.onload=function(){pImg=im;filteredPImg=null;markZone('pArea','n1',dataUrl);checkPhotoReady();pCamStop();showPresetToast('撮影しました！');};im.src=dataUrl;
+  var im=new Image();im.onload=function(){pImg=im;markZone('pArea','n1',dataUrl);checkPhotoReady();pCamStop();showPresetToast('撮影しました！');};im.src=dataUrl;
 };
 
 // スタンプ（写真）
@@ -934,7 +879,11 @@ document.getElementById('vTextApplyBtn').onclick=function(){
   var txt=document.getElementById('vTextInput').value;
   if(!txt.trim()){showPresetToast('テキストを入力してください');return;}
   syncVTextObj();
-  if(!vTextObj.placed){vTextObj.x=vpc.width*0.1;vTextObj.y=vpc.height*0.45;vTextObj.placed=true;}
+  if(!vTextObj.placed){
+    var w=vpc.width>0?vpc.width:(vfImg?vfImg.naturalWidth:1080);
+    var h=vpc.height>0?vpc.height:(vfImg?vfImg.naturalHeight:1080);
+    vTextObj.x=w*0.1;vTextObj.y=h*0.45;vTextObj.placed=true;
+  }
   showPresetToast('テキストを配置しました');
 };
 document.getElementById('vTextClearBtn').onclick=function(){vTextObj.text='';vTextObj.placed=false;document.getElementById('vTextInput').value='';};
@@ -993,6 +942,8 @@ document.getElementById('vGoBtn').onclick=function(){
     syncVTextObj();
     if(vsImg){vsAdj={x:vpc.width*0.65,y:vpc.height*0.65,scale:Math.min(vpc.width,vpc.height)*0.3/Math.max(vsImg.naturalWidth,vsImg.naturalHeight)};}
     if(vTextObj.placed){vTextObj.x=vpc.width*0.1;vTextObj.y=vpc.height*0.45;vTextObj.scale=1;}
+    // テキスト未配置でも初期座標を設定しておく（0,0ドラッグ防止）
+    if(!vTextObj.placed&&vTextObj.text.trim()){vTextObj.x=vpc.width*0.1;vTextObj.y=vpc.height*0.45;}
     setVAdjTarget('video');
     document.getElementById('vAdjTargetStamp').disabled=!vsImg;
     document.getElementById('vAdjTargetText').disabled=!vTextObj.text.trim();
