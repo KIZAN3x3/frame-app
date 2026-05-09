@@ -573,7 +573,8 @@ function drawTextLayer(ctx, tObj){
   ctx.save();
   ctx.font=(tObj.bold?'bold ':'')+fontSize+'px '+tObj.font;
   ctx.fillStyle=tObj.color;
-  ctx.textBaseline='top';
+  ctx.textBaseline='middle';
+  ctx.textAlign='center';
   if(tObj.shadow){
     ctx.shadowColor='rgba(0,0,0,0.7)';
     ctx.shadowBlur=fontSize*0.15;
@@ -582,11 +583,13 @@ function drawTextLayer(ctx, tObj){
   }
   var lines=tObj.text.split('\n');
   var lineH=fontSize*1.35;
+  var totalH=lineH*(lines.length-1);
   lines.forEach(function(line,i){
-    var tx=Math.round(tObj.x), ty=Math.round(tObj.y+i*lineH);
+    var tx=Math.round(tObj.x);
+    var ty=Math.round(tObj.y - totalH/2 + i*lineH);
     if(tObj.stroke){
       ctx.save();
-      ctx.shadowColor='transparent'; // 縁取りに影を乗せない
+      ctx.shadowColor='transparent';
       ctx.strokeStyle=tObj.strokeColor;
       ctx.lineWidth=Math.max(2,fontSize*0.08);
       ctx.lineJoin='round';
@@ -668,7 +671,7 @@ document.getElementById('pTextApplyBtn').onclick=function(){
     // goBtn後にoutW/outHが確定しているのでそちらを使う。未確定なら仮値
     var w=ac.width>0?ac.width:(fImg?fImg.naturalWidth:1080);
     var h=ac.height>0?ac.height:(fImg?fImg.naturalHeight:1080);
-    pTextObj.x=w*0.1; pTextObj.y=h*0.45;
+    pTextObj.x=w*0.5; pTextObj.y=h*0.5;
     pTextObj.placed=true;
   }
   if(!document.getElementById('adjSection').classList.contains('hidden'))drawPhoto();
@@ -696,11 +699,11 @@ document.getElementById('goBtn').onclick=function(){
   adj.bx=adj.x;adj.by=adj.y;adj.bs=adj.bs=s;
   if(sImg){var ss=Math.min(outW,outH)*0.3/Math.max(sImg.naturalWidth,sImg.naturalHeight);sAdj={x:outW*0.65,y:outH*0.65,scale:ss};}
   // テキストが配置済みなら位置を枠サイズに合わせてリセット
-  if(pTextObj.placed){pTextObj.x=outW*0.1;pTextObj.y=outH*0.45;pTextObj.scale=1;}
+  if(pTextObj.placed){pTextObj.x=outW*0.5;pTextObj.y=outH*0.5;pTextObj.scale=1;}
   // 未配置でも値をsyncしておく（adjSection開いた後にApplyせずドラッグできるように）
   syncPTextObj();
   // テキスト未配置の場合も初期座標を設定しておく（0,0ドラッグ防止）
-  if(!pTextObj.placed&&pTextObj.text.trim()){pTextObj.x=outW*0.1;pTextObj.y=outH*0.45;}
+  if(!pTextObj.placed&&pTextObj.text.trim()){pTextObj.x=outW*0.5;pTextObj.y=outH*0.5;}
   setAdjTarget('photo');
   document.getElementById('adjTargetStamp').disabled=!sImg;
   document.getElementById('adjTargetText').disabled=!pTextObj.text.trim();
@@ -749,7 +752,7 @@ function setupPhotoGesture(){
 
 document.getElementById('resetBtn').onclick=function(){
   if(adjTarget==='stamp'&&sImg){sAdj={x:outW*0.65,y:outH*0.65,scale:Math.min(outW,outH)*0.3/Math.max(sImg.naturalWidth,sImg.naturalHeight)};}
-  else if(adjTarget==='text'){pTextObj.x=outW*0.1;pTextObj.y=outH*0.45;pTextObj.scale=1;}
+  else if(adjTarget==='text'){pTextObj.x=outW*0.5;pTextObj.y=outH*0.5;pTextObj.scale=1;}
   else{adj.x=adj.bx;adj.y=adj.by;adj.scale=adj.bs;}
   drawPhoto();
 };
@@ -882,7 +885,7 @@ document.getElementById('vTextApplyBtn').onclick=function(){
   if(!vTextObj.placed){
     var w=vpc.width>0?vpc.width:(vfImg?vfImg.naturalWidth:1080);
     var h=vpc.height>0?vpc.height:(vfImg?vfImg.naturalHeight:1080);
-    vTextObj.x=w*0.1;vTextObj.y=h*0.45;vTextObj.placed=true;
+    vTextObj.x=w*0.5;vTextObj.y=h*0.5;vTextObj.placed=true;
   }
   showPresetToast('テキストを配置しました');
 };
@@ -941,9 +944,9 @@ document.getElementById('vGoBtn').onclick=function(){
     vpc.width=vfImg.naturalWidth;vpc.height=vfImg.naturalHeight;resetVAdj();
     syncVTextObj();
     if(vsImg){vsAdj={x:vpc.width*0.65,y:vpc.height*0.65,scale:Math.min(vpc.width,vpc.height)*0.3/Math.max(vsImg.naturalWidth,vsImg.naturalHeight)};}
-    if(vTextObj.placed){vTextObj.x=vpc.width*0.1;vTextObj.y=vpc.height*0.45;vTextObj.scale=1;}
+    if(vTextObj.placed){vTextObj.x=vpc.width*0.5;vTextObj.y=vpc.height*0.5;vTextObj.scale=1;}
     // テキスト未配置でも初期座標を設定しておく（0,0ドラッグ防止）
-    if(!vTextObj.placed&&vTextObj.text.trim()){vTextObj.x=vpc.width*0.1;vTextObj.y=vpc.height*0.45;}
+    if(!vTextObj.placed&&vTextObj.text.trim()){vTextObj.x=vpc.width*0.5;vTextObj.y=vpc.height*0.5;}
     setVAdjTarget('video');
     document.getElementById('vAdjTargetStamp').disabled=!vsImg;
     document.getElementById('vAdjTargetText').disabled=!vTextObj.text.trim();
