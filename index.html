@@ -333,17 +333,17 @@ function checkPw(){
               <button class="abtn" id="vTrimSetEnd" style="padding:4px 8px;font-size:11px;color:var(--red);border-color:var(--red);">⏹ ここまで</button>
             </div>
             <p style="font-size:12px;color:var(--text2);text-align:center;margin-bottom:8px;">選択範囲：<span id="vTrimLength" style="color:var(--accent);font-weight:700;">0.0s</span></p>
-            <button class="abtn pri" id="vTrimBtn" style="width:100%;padding:10px;">✂️ トリミングしてMP4でDL</button>
+            <button class="abtn pri" id="vTrimBtn" style="width:100%;padding:10px;">✂️ トリミングしてMP4でダウンロード</button>
             <div class="stbox" id="vTrimStbox"></div>
           </div>
           <button class="dlbtn" id="vDlBtn" style="margin-top:10px;">⬇ 動画をダウンロード（WebM）</button>
-          <button class="dlbtn" id="vMp4Btn" style="border-color:var(--green);color:var(--green);margin-top:8px;">🎬 MP4に変換してDL</button>
+          <button class="dlbtn" id="vMp4Btn" style="border-color:var(--green);color:var(--green);margin-top:8px;">🎬 MP4に変換してダウンロード</button>
           <div class="stbox" id="vMp4Stbox"></div>
           <div id="vIosSaveHint" style="display:none;margin-top:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--rs);border-left:3px solid var(--green);">
             <p style="font-size:12px;color:var(--text2);line-height:2;margin:0;">
               📱 <b style="color:var(--text);">iPad / iPhoneの保存方法</b><br>
               ⚠️「WebM」は<b style="color:var(--red);">使えません</b><br>
-              「<b style="color:var(--green);">MP4に変換してDL</b>」→「ファイルに保存」
+              「<b style="color:var(--green);">MP4に変換してダウンロード</b>」→「ファイルに保存」
             </p>
           </div>
           <button class="rtbtn" id="vRtBtn">↩ やり直す</button>
@@ -442,9 +442,9 @@ function checkPw(){
           <canvas id="cSnapCanvas" class="preview-canvas hidden"></canvas>
           <button class="dlbtn" id="cMp4Btn" style="margin-top:0;font-size:15px;padding:16px;">🎬 動画をダウンロード（MP4）</button>
           <div class="stbox" id="cMp4Stbox"></div>
-          <button class="dlbtn" id="cVideoDlBtn" style="border-color:var(--text2);color:var(--text2);margin-top:8px;font-size:12px;">⬇ WebMでDL（変換できない場合）</button>
+          <button class="dlbtn" id="cVideoDlBtn" style="border-color:var(--text2);color:var(--text2);margin-top:8px;font-size:12px;">⬇ WebMでダウンロード（変換できない場合）</button>
           <button class="dlbtn" id="cSnapBtn" style="border-color:var(--green);color:var(--green);margin-top:8px">📸 静止画として保存（PNG）</button>
-          <button class="dlbtn" id="cVideoNoFrameBtn" style="border-color:var(--text2);color:var(--text2);margin-top:8px;font-size:12px;">🎬 WebMでDL（枠なし）</button>
+          <button class="dlbtn" id="cVideoNoFrameBtn" style="border-color:var(--text2);color:var(--text2);margin-top:8px;font-size:12px;">🎬 WebMでダウンロード（枠なし）</button>
           <button class="rtbtn" id="cRtBtn">↩ カメラに戻る</button>
         </div>
       </div>
@@ -988,7 +988,7 @@ async function convertToMp4Server(blob,stboxId,filename){
     if(isIOS){setSt(stboxId,'変換完了！','done');openVideoForIOS(url);}
     else{var a=document.createElement('a');a.download=filename+'_'+Date.now()+'.mp4';a.href=url;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},1000);setSt(stboxId,'MP4変換完了！','done');}
   }catch(e){
-    clearInterval(_progTimer);setSt(stboxId,'変換失敗（'+e.message+'）→ WebMでDLします','err');
+    clearInterval(_progTimer);setSt(stboxId,'変換失敗（'+e.message+'）→ WebMでダウンロードします','err');
     if(blob){setTimeout(function(){var u=URL.createObjectURL(blob);var a=document.createElement('a');a.download=filename+'_'+Date.now()+'.webm';a.href=u;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},1000);},1500);}
   }
 }
@@ -997,7 +997,7 @@ document.getElementById('vMp4Btn').onclick=async function(){
   if(vTrimBlob.type&&vTrimBlob.type.indexOf('mp4')!==-1){
     var url=URL.createObjectURL(vTrimBlob);
     if(isIOS){setSt('vMp4Stbox','完了！','done');openVideoForIOS(url);}
-    else{var a=document.createElement('a');a.download='frame_video_'+Date.now()+'.mp4';a.href=url;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},1000);setSt('vMp4Stbox','MP4でDL完了！','done');}
+    else{var a=document.createElement('a');a.download='frame_video_'+Date.now()+'.mp4';a.href=url;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},1000);setSt('vMp4Stbox','MP4でダウンロード完了！','done');}
     return;
   }
   await convertToMp4Server(vTrimBlob,'vMp4Stbox','frame_video');
@@ -1012,7 +1012,7 @@ function addCamHistory(blob,thumbDataUrl){
   var item=document.createElement('div');item.style.cssText='display:flex;align-items:center;gap:10px;padding:8px;background:var(--surface2);border-radius:var(--rs);';
   var thumb=document.createElement('img');thumb.src=thumbDataUrl;thumb.style.cssText='width:56px;height:56px;object-fit:cover;border-radius:6px;flex-shrink:0;';
   var info=document.createElement('div');info.style.cssText='flex:1;min-width:0;';info.innerHTML='<div style="font-size:12px;font-weight:600;">録画 '+num+'</div><div style="font-size:11px;color:var(--text2);">'+(new Date().toLocaleTimeString())+'</div>';
-  var dlBtn=document.createElement('button');dlBtn.className='abtn pri';dlBtn.style.cssText='padding:8px 12px;font-size:12px;flex-shrink:0;';dlBtn.textContent='⬇ DL';
+  var dlBtn=document.createElement('button');dlBtn.className='abtn pri';dlBtn.style.cssText='padding:8px 12px;font-size:12px;flex-shrink:0;';dlBtn.textContent='⬇ ダウンロード';
   dlBtn.onclick=function(){var a=document.createElement('a');a.download='cam_frame_'+Date.now()+'.webm';a.href=url;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);},1000);};
   item.appendChild(thumb);item.appendChild(info);item.appendChild(dlBtn);list.insertBefore(item,list.firstChild);
 }
