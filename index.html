@@ -348,6 +348,7 @@ function checkPw(){
             </p>
           </div>
           <button class="rtbtn" id="vRtBtn">↩ やり直す</button>
+          <button class="rtbtn" id="vTopBtn">⌂ TOPに戻る</button>
         </div>
       </div>
     </div>
@@ -447,6 +448,7 @@ function checkPw(){
           <button class="dlbtn" id="cSnapBtn" style="border-color:var(--green);color:var(--green);margin-top:8px">📸 静止画として保存（PNG）</button>
           <button class="dlbtn" id="cVideoNoFrameBtn" style="border-color:var(--text2);color:var(--text2);margin-top:8px;font-size:12px;">🎬 WebMでダウンロード（枠なし）</button>
           <button class="rtbtn" id="cRtBtn">↩ カメラに戻る</button>
+          <button class="rtbtn" id="cTopBtn">⌂ TOPに戻る</button>
         </div>
       </div>
     </div>
@@ -867,6 +869,7 @@ document.getElementById('vRecBtn').onclick=function(){
   recLoop();
 };
 document.getElementById('vRtBtn').onclick=function(){document.getElementById('vResSection').classList.add('hidden');if(vMediaRec&&vMediaRec.state==='recording'){vMediaRec.stop();}videoEl.loop=true;};
+document.getElementById('vTopBtn').onclick=function(){location.reload();};
 
 // ===== カメラモード =====
 var cfImg=null,cLayer='frame-top',camFacing='user';
@@ -1004,6 +1007,7 @@ document.getElementById('cRecBtn').onclick=function(){
   cRecTimerID=setInterval(function(){document.getElementById('cRecTime').textContent=Math.round((Date.now()-cRecStartTime)/1000)+'s';},500);
 };
 document.getElementById('cRtBtn').onclick=function(){document.getElementById('cResSection').classList.add('hidden');hideSt('cRecStbox');};
+document.getElementById('cTopBtn').onclick=function(){location.reload();};
 
 // ===== トースト =====
 function showPresetToast(msg){
