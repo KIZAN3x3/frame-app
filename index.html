@@ -431,7 +431,7 @@ function checkPw(){
 
     <div id="cHistorySection" style="display:none;">
       <div class="card">
-        <div class="ch"><div class="num" style="background:var(--text2)">📋</div><span class="ct">録画一覧（このセッション中）</span></div>
+        <div class="ch"><div class="num" style="background:var(--text2)">📋</div><span class="ct">録画一覧</span></div>
         <div class="cb" id="cHistoryList" style="display:flex;flex-direction:column;gap:8px;"></div>
       </div>
     </div>
@@ -990,18 +990,8 @@ document.getElementById('cRecBtn').onclick=function(){
     var snap=document.getElementById('cSnapCanvas');snap.width=cpc.width;snap.height=cpc.height;snap.getContext('2d').drawImage(cpc,0,0);
     trackEvent('camera');setSt('cRecStbox','録画完了！','done');
     var resSec=document.getElementById('cResSection');resSec.classList.remove('hidden');
-    var histBtn=addCamHistory(blob,snap.toDataURL('image/png'));
+    persistAndRenderCamHistory(blob,snap.toDataURL('image/png'),mimeType,Date.now());
     window.scrollTo({top:resSec.offsetTop-10,behavior:'smooth'});
-    convertToMp4Server(blob,null,'cam_frame',false).then(function(mp4Blob){
-      histBtn.disabled=false;
-      if(mp4Blob){
-        histBtn.textContent='⬇ ダウンロード';
-        histBtn.onclick=function(){saveBlobWithShare(mp4Blob,'cam_frame_'+Date.now()+'.mp4','video/mp4');};
-      }else{
-        histBtn.textContent='⬇ ダウンロード（WebM）';
-        histBtn.onclick=function(){saveBlobWithShare(blob,'cam_frame_'+Date.now()+'.webm','video/webm');};
-      }
-    });
   };
   var noFrameCanvas=document.createElement('canvas');noFrameCanvas.width=cpc.width;noFrameCanvas.height=cpc.height;
   var noFrameCtx=noFrameCanvas.getContext('2d');var noFrameStream=new MediaStream();
@@ -1069,17 +1059,96 @@ document.getElementById('vMp4Btn').onclick=async function(){
   }
   await convertToMp4Server(vTrimBlob,'vMp4Stbox','frame_video');
 };
+// ===== 録画データの永続化(IndexedDB) =====
+var CAM_DB_NAME='frameapp_cam_history',CAM_DB_STORE='recordings';
+function openCamDB(){
+  return new Promise(function(resolve,reject){
+    var req=indexedDB.open(CAM_DB_NAME,1);
+    req.onupgradeneeded=function(){req.result.createObjectStore(CAM_DB_STORE,{keyPath:'id',autoIncrement:true});};
+    req.onsuccess=function(){resolve(req.result);};
+    req.onerror=function(){reject(req.error);};
+  });
+}
+async function camDBAdd(blob,thumb,mimeType,ts){
+  var db=await openCamDB();
+  return new Promise(function(resolve,reject){
+    var tx=db.transaction(CAM_DB_STORE,'readwrite');
+    var req=tx.objectStore(CAM_DB_STORE).add({blob:blob,thumb:thumb,mimeType:mimeType,ts:ts});
+    req.onsuccess=function(){resolve(req.result);};
+    req.onerror=function(){reject(req.error);};
+  });
+}
+async function camDBGetAll(){
+  var db=await openCamDB();
+  return new Promise(function(resolve,reject){
+    var tx=db.transaction(CAM_DB_STORE,'readonly');
+    var req=tx.objectStore(CAM_DB_STORE).getAll();
+    req.onsuccess=function(){resolve(req.result||[]);};
+    req.onerror=function(){reject(req.error);};
+  });
+}
+async function camDBDelete(id){
+  var db=await openCamDB();
+  return new Promise(function(resolve,reject){
+    var tx=db.transaction(CAM_DB_STORE,'readwrite');
+    tx.objectStore(CAM_DB_STORE).delete(id);
+    tx.oncomplete=function(){resolve();};
+    tx.onerror=function(){reject(tx.error);};
+  });
+}
+
 // ===== 録画一覧 =====
 var camHistoryCount=0;
-function addCamHistory(blob,thumbDataUrl){
+function armCamDownloadBtn(dlBtn,blob,mp4Blob){
+  dlBtn.disabled=false;
+  if(mp4Blob){
+    dlBtn.textContent='⬇ ダウンロード';
+    dlBtn.onclick=function(){saveBlobWithShare(mp4Blob,'cam_frame_'+Date.now()+'.mp4','video/mp4');};
+  }else{
+    dlBtn.textContent='⬇ ダウンロード（WebM）';
+    dlBtn.onclick=function(){saveBlobWithShare(blob,'cam_frame_'+Date.now()+'.webm','video/webm');};
+  }
+}
+function wireCamDownloadOnClick(dlBtn,blob){
+  dlBtn.onclick=async function(){
+    dlBtn.disabled=true;dlBtn.textContent='変換中…';
+    var mp4Blob=await convertToMp4Server(blob,null,'cam_frame',false);
+    armCamDownloadBtn(dlBtn,blob,mp4Blob);
+    if(mp4Blob)await saveBlobWithShare(mp4Blob,'cam_frame_'+Date.now()+'.mp4','video/mp4');
+    else await saveBlobWithShare(blob,'cam_frame_'+Date.now()+'.webm','video/webm');
+  };
+}
+function addCamHistory(dbId,blob,thumbDataUrl,ts,pending){
   camHistoryCount++;var num=camHistoryCount;
   document.getElementById('cHistorySection').style.display='block';var list=document.getElementById('cHistoryList');
   var item=document.createElement('div');item.style.cssText='display:flex;align-items:center;gap:10px;padding:8px;background:var(--surface2);border-radius:var(--rs);';
   var thumb=document.createElement('img');thumb.src=thumbDataUrl;thumb.style.cssText='width:56px;height:56px;object-fit:cover;border-radius:6px;flex-shrink:0;';
-  var info=document.createElement('div');info.style.cssText='flex:1;min-width:0;';info.innerHTML='<div style="font-size:12px;font-weight:600;">録画 '+num+'</div><div style="font-size:11px;color:var(--text2);">'+(new Date().toLocaleTimeString())+'</div>';
-  var dlBtn=document.createElement('button');dlBtn.className='abtn pri';dlBtn.style.cssText='padding:8px 12px;font-size:12px;flex-shrink:0;';dlBtn.textContent='変換中…';dlBtn.disabled=true;
-  item.appendChild(thumb);item.appendChild(info);item.appendChild(dlBtn);list.insertBefore(item,list.firstChild);
+  var info=document.createElement('div');info.style.cssText='flex:1;min-width:0;';info.innerHTML='<div style="font-size:12px;font-weight:600;">録画 '+num+'</div><div style="font-size:11px;color:var(--text2);">'+(new Date(ts||Date.now()).toLocaleTimeString())+'</div>';
+  var dlBtn=document.createElement('button');dlBtn.className='abtn pri';dlBtn.style.cssText='padding:8px 12px;font-size:12px;flex-shrink:0;';
+  var delBtn=document.createElement('button');delBtn.className='abtn';delBtn.style.cssText='padding:8px 10px;font-size:12px;flex-shrink:0;color:var(--red);border-color:var(--red);';delBtn.textContent='🗑 削除';
+  delBtn.onclick=function(){
+    if(!confirm('この録画を削除しますか？'))return;
+    if(dbId!=null)camDBDelete(dbId).catch(function(){});
+    item.remove();
+  };
+  if(pending){dlBtn.textContent='変換中…';dlBtn.disabled=true;}
+  else{dlBtn.textContent='⬇ ダウンロード';wireCamDownloadOnClick(dlBtn,blob);}
+  item.appendChild(thumb);item.appendChild(info);item.appendChild(dlBtn);item.appendChild(delBtn);list.insertBefore(item,list.firstChild);
   return dlBtn;
+}
+async function persistAndRenderCamHistory(blob,thumbDataUrl,mimeType,ts){
+  var dbId=null;
+  try{dbId=await camDBAdd(blob,thumbDataUrl,mimeType,ts);}catch(e){}
+  var histBtn=addCamHistory(dbId,blob,thumbDataUrl,ts,true);
+  convertToMp4Server(blob,null,'cam_frame',false).then(function(mp4Blob){
+    armCamDownloadBtn(histBtn,blob,mp4Blob);
+  });
+}
+async function restoreCamHistory(){
+  var records;
+  try{records=await camDBGetAll();}catch(e){return;}
+  records.sort(function(a,b){return a.ts-b.ts;});
+  records.forEach(function(rec){addCamHistory(rec.id,rec.blob,rec.thumb,rec.ts,false);});
 }
 
 function playBeep(freq,dur,vol){try{var ac2=new (window.AudioContext||window.webkitAudioContext)();var osc=ac2.createOscillator();var gain=ac2.createGain();osc.connect(gain);gain.connect(ac2.destination);osc.frequency.value=freq||880;gain.gain.setValueAtTime(vol||0.3,ac2.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,ac2.currentTime+(dur||0.15));osc.start();osc.stop(ac2.currentTime+(dur||0.15));}catch(e){}}
@@ -1127,6 +1196,7 @@ document.getElementById('vsSavePresetBtn').onclick=function(){if(!vsImg)return;a
 document.getElementById('fIn').addEventListener('change',async function(e){var f=e.target.files[0];if(!f)return;fImg=await loadImg(f);markZone('fArea','n2',fImg.src);checkPhotoReady();document.getElementById('pSavePresetBtn').disabled=false;renderAllPresets();});
 document.getElementById('vfIn').addEventListener('change',async function(e){var f=e.target.files[0];if(!f)return;vfImg=await loadImg(f);markZone('vfArea','vn2',vfImg.src);checkVideoReady();document.getElementById('vSavePresetBtn').disabled=false;renderAllPresets();});
 window.addEventListener('load',function(){renderAllPresets();});
+window.addEventListener('load',function(){restoreCamHistory();});
 
 // ===== 動画トリミング =====
 var vTrimBlob=null;
