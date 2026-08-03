@@ -440,8 +440,6 @@ function checkPw(){
         <div class="ch"><div class="num ok">✓</div><span class="ct">録画完了！</span></div>
         <div class="cb">
           <canvas id="cSnapCanvas" class="preview-canvas hidden"></canvas>
-          <button class="dlbtn" id="cMp4Btn" style="margin-top:0;font-size:15px;padding:16px;">🎬 動画をダウンロード（MP4）</button>
-          <div class="stbox" id="cMp4Stbox"></div>
           <button class="rtbtn" id="cRtBtn">↩ カメラに戻る</button>
           <button class="rtbtn" id="cTopBtn">⌂ TOPに戻る</button>
         </div>
@@ -991,9 +989,18 @@ document.getElementById('cRecBtn').onclick=function(){
     var snap=document.getElementById('cSnapCanvas');snap.width=cpc.width;snap.height=cpc.height;snap.getContext('2d').drawImage(cpc,0,0);
     trackEvent('camera');setSt('cRecStbox','録画完了！','done');
     var resSec=document.getElementById('cResSection');resSec.classList.remove('hidden');
-    addCamHistory(blob,snap.toDataURL('image/png'));
+    var histBtn=addCamHistory(blob,snap.toDataURL('image/png'));
     window.scrollTo({top:resSec.offsetTop-10,behavior:'smooth'});
-    setSt('cMp4Stbox','MP4に変換中…','loading');convertToMp4Server(blob,'cMp4Stbox','cam_frame');
+    convertToMp4Server(blob,null,'cam_frame',false).then(function(mp4Blob){
+      histBtn.disabled=false;
+      if(mp4Blob){
+        histBtn.textContent='⬇ ダウンロード';
+        histBtn.onclick=function(){saveBlobWithShare(mp4Blob,'cam_frame_'+Date.now()+'.mp4','video/mp4');};
+      }else{
+        histBtn.textContent='⬇ ダウンロード（WebM）';
+        histBtn.onclick=function(){saveBlobWithShare(blob,'cam_frame_'+Date.now()+'.webm','video/webm');};
+      }
+    });
   };
   var noFrameCanvas=document.createElement('canvas');noFrameCanvas.width=cpc.width;noFrameCanvas.height=cpc.height;
   var noFrameCtx=noFrameCanvas.getContext('2d');var noFrameStream=new MediaStream();
@@ -1024,11 +1031,13 @@ function showPresetToast(msg){
 
 // ===== MP4変換 =====
 var SERVER_URL='https://kizan.jp/convert',cLastBlob=null;
-async function convertToMp4Server(blob,stboxId,filename){
-  if(!blob){setSt(stboxId,'動画データがありません','err');return;}
-  setSt(stboxId,'アップロード中... 0%','loading');
+async function convertToMp4Server(blob,stboxId,filename,autoSave){
+  if(autoSave===undefined)autoSave=true;
+  if(!blob){if(stboxId)setSt(stboxId,'動画データがありません','err');return null;}
+  if(stboxId)setSt(stboxId,'アップロード中... 0%','loading');
   var _progVal=0,_progPhase='upload';
   var _progTimer=setInterval(function(){
+    if(!stboxId)return;
     var el=document.getElementById(stboxId);if(!el)return;
     var sp=el.querySelector('span:last-child');if(!sp)return;
     if(_progPhase==='upload'){_progVal=Math.min(_progVal+8,30);sp.textContent='アップロード中... '+_progVal+'%';}
@@ -1041,11 +1050,13 @@ async function convertToMp4Server(blob,stboxId,filename){
     if(!res.ok){clearInterval(_progTimer);throw new Error('サーバーエラー '+res.status);}
     _progPhase='download';var mp4Blob=await res.blob();clearInterval(_progTimer);
     if(!mp4Blob||mp4Blob.size<1000)throw new Error('MP4データが不正です');
-    await saveBlobWithShare(mp4Blob,filename+'_'+Date.now()+'.mp4','video/mp4');
-    setSt(stboxId,'MP4変換完了！','done');
+    if(autoSave)await saveBlobWithShare(mp4Blob,filename+'_'+Date.now()+'.mp4','video/mp4');
+    if(stboxId)setSt(stboxId,'MP4変換完了！','done');
+    return mp4Blob;
   }catch(e){
-    clearInterval(_progTimer);setSt(stboxId,'変換失敗（'+e.message+'）→ WebMでダウンロードします','err');
-    if(blob){setTimeout(function(){var u=URL.createObjectURL(blob);var a=document.createElement('a');a.download=filename+'_'+Date.now()+'.webm';a.href=u;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},1000);},1500);}
+    clearInterval(_progTimer);if(stboxId)setSt(stboxId,'変換失敗（'+e.message+'）→ WebMでダウンロードします','err');
+    if(blob&&autoSave){setTimeout(function(){var u=URL.createObjectURL(blob);var a=document.createElement('a');a.download=filename+'_'+Date.now()+'.webm';a.href=u;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},1000);},1500);}
+    return null;
   }
 }
 document.getElementById('vMp4Btn').onclick=async function(){
@@ -1057,19 +1068,17 @@ document.getElementById('vMp4Btn').onclick=async function(){
   }
   await convertToMp4Server(vTrimBlob,'vMp4Stbox','frame_video');
 };
-document.getElementById('cMp4Btn').onclick=async function(){if(!cLastBlob){setSt('cMp4Stbox','先に録画してください','err');return;}await convertToMp4Server(cLastBlob,'cMp4Stbox','cam_frame');};
-
 // ===== 録画一覧 =====
 var camHistoryCount=0;
 function addCamHistory(blob,thumbDataUrl){
-  camHistoryCount++;var num=camHistoryCount;var url=URL.createObjectURL(blob);
+  camHistoryCount++;var num=camHistoryCount;
   document.getElementById('cHistorySection').style.display='block';var list=document.getElementById('cHistoryList');
   var item=document.createElement('div');item.style.cssText='display:flex;align-items:center;gap:10px;padding:8px;background:var(--surface2);border-radius:var(--rs);';
   var thumb=document.createElement('img');thumb.src=thumbDataUrl;thumb.style.cssText='width:56px;height:56px;object-fit:cover;border-radius:6px;flex-shrink:0;';
   var info=document.createElement('div');info.style.cssText='flex:1;min-width:0;';info.innerHTML='<div style="font-size:12px;font-weight:600;">録画 '+num+'</div><div style="font-size:11px;color:var(--text2);">'+(new Date().toLocaleTimeString())+'</div>';
-  var dlBtn=document.createElement('button');dlBtn.className='abtn pri';dlBtn.style.cssText='padding:8px 12px;font-size:12px;flex-shrink:0;';dlBtn.textContent='⬇ ダウンロード';
-  dlBtn.onclick=function(){var a=document.createElement('a');a.download='cam_frame_'+Date.now()+'.webm';a.href=url;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);},1000);};
+  var dlBtn=document.createElement('button');dlBtn.className='abtn pri';dlBtn.style.cssText='padding:8px 12px;font-size:12px;flex-shrink:0;';dlBtn.textContent='変換中…';dlBtn.disabled=true;
   item.appendChild(thumb);item.appendChild(info);item.appendChild(dlBtn);list.insertBefore(item,list.firstChild);
+  return dlBtn;
 }
 
 function playBeep(freq,dur,vol){try{var ac2=new (window.AudioContext||window.webkitAudioContext)();var osc=ac2.createOscillator();var gain=ac2.createGain();osc.connect(gain);gain.connect(ac2.destination);osc.frequency.value=freq||880;gain.gain.setValueAtTime(vol||0.3,ac2.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,ac2.currentTime+(dur||0.15));osc.start();osc.stop(ac2.currentTime+(dur||0.15));}catch(e){}}
