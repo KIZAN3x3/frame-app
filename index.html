@@ -223,6 +223,7 @@ function checkPw(){
             </p>
           </div>
           <button class="rtbtn" id="rtBtn">↩ 調整に戻る</button>
+          <button class="rtbtn" id="topBtn">⌂ TOPに戻る</button>
         </div>
       </div>
     </div>
@@ -654,6 +655,9 @@ document.getElementById('applyBtn').onclick=function(){
 document.getElementById('rtBtn').onclick=function(){
   document.getElementById('resSection').classList.add('hidden');
   window.scrollTo({top:document.getElementById('adjSection').offsetTop-10,behavior:'smooth'});
+};
+document.getElementById('topBtn').onclick=function(){
+  location.reload();
 };
 document.getElementById('dlBtn').onclick=async function(){
   var rc=document.getElementById('resCanvas');
