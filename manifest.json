@@ -1,0 +1,21 @@
+{
+  "name": "フレーム合成",
+  "short_name": "フレーム合成",
+  "description": "フレーム合成アプリ",
+  "start_url": "/frame-app/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#EB6100",
+  "icons": [
+    {
+      "src": "/frame-app/FC192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/frame-app/FC512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

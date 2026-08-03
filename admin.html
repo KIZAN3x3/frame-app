@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理画面 - フレーム合成アプリ</title>
+<style>
+:root{--bg:#0f0f0f;--surface:#1a1a1a;--border:#2e2e2e;--text:#f0f0f0;--text2:#888;--accent:#e8772e;--green:#22c55e;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Hiragino Sans','Yu Gothic',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.wrap{width:100%;max-width:480px;}
+h1{font-size:18px;font-weight:700;margin-bottom:20px;color:var(--accent);}
+.login{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;}
+.login p{font-size:13px;color:var(--text2);margin-bottom:12px;}
+input{width:100%;padding:12px;background:#242424;border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;margin-bottom:12px;}
+button{width:100%;padding:13px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;}
+.stats{display:none;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:12px;}
+.card h2{font-size:13px;color:var(--text2);margin-bottom:16px;}
+.row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);}
+.row:last-child{border-bottom:none;}
+.row .label{font-size:13px;color:var(--text2);}
+.row .val{font-size:22px;font-weight:700;color:var(--accent);}
+.err{color:#ef4444;font-size:13px;margin-top:8px;display:none;}
+.reload{width:100%;padding:11px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--text2);font-size:13px;cursor:pointer;margin-top:4px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📊 管理画面</h1>
+
+  <div class="login" id="loginSection">
+    <p>管理者パスワードを入力してください</p>
+    <input type="password" id="passInput" placeholder="パスワード">
+    <button onclick="login()">ログイン</button>
+    <p class="err" id="errMsg">パスワードが違います</p>
+  </div>
+
+  <div class="stats" id="statsSection">
+    <div class="card">
+      <h2>📈 利用統計（サーバー再起動でリセット）</h2>
+      <div class="row"><span class="label">👀 アクセス数</span><span class="val" id="s-access">-</span></div>
+      <div class="row"><span class="label">📷 写真モード</span><span class="val" id="s-photo">-</span></div>
+      <div class="row"><span class="label">🎬 動画モード</span><span class="val" id="s-video">-</span></div>
+      <div class="row"><span class="label">📹 カメラモード</span><span class="val" id="s-camera">-</span></div>
+      <div class="row"><span class="label">✂️ トリミング</span><span class="val" id="s-trim">-</span></div>
+    </div>
+    <button class="reload" onclick="loadStats()">🔄 更新</button>
+  </div>
+</div>
+
+<script>
+var pass='';
+function login(){
+  pass=document.getElementById('passInput').value;
+  loadStats();
+}
+document.getElementById('passInput').addEventListener('keydown',function(e){
+  if(e.key==='Enter') login();
+});
+function loadStats(){
+  fetch('https://kizan.jp/admin-stats?pass='+encodeURIComponent(pass))
+    .then(function(r){
+      if(r.status===401) throw new Error('unauthorized');
+      return r.json();
+    })
+    .then(function(data){
+      document.getElementById('loginSection').style.display='none';
+      document.getElementById('statsSection').style.display='block';
+      document.getElementById('s-access').textContent=data.access||0;
+      document.getElementById('s-photo').textContent=data.photo||0;
+      document.getElementById('s-video').textContent=data.video||0;
+      document.getElementById('s-camera').textContent=data.camera||0;
+      document.getElementById('s-trim').textContent=data.trim||0;
+    })
+    .catch(function(){
+      document.getElementById('errMsg').style.display='block';
+    });
+}
+</script>
+</body>
+</html>
