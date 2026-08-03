@@ -337,14 +337,12 @@ function checkPw(){
             <button class="abtn pri" id="vTrimBtn" style="width:100%;padding:10px;">✂️ トリミングしてMP4でダウンロード</button>
             <div class="stbox" id="vTrimStbox"></div>
           </div>
-          <button class="dlbtn" id="vDlBtn" style="margin-top:10px;">⬇ 動画をダウンロード（WebM）</button>
           <button class="dlbtn" id="vMp4Btn" style="border-color:var(--green);color:var(--green);margin-top:8px;">🎬 MP4に変換してダウンロード</button>
           <div class="stbox" id="vMp4Stbox"></div>
           <div id="vIosSaveHint" style="display:none;margin-top:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--rs);border-left:3px solid var(--green);">
             <p style="font-size:12px;color:var(--text2);line-height:2;margin:0;">
               📱 <b style="color:var(--text);">iPad / iPhoneの保存方法</b><br>
-              ⚠️「WebM」は<b style="color:var(--red);">使えません</b><br>
-              「<b style="color:var(--green);">MP4に変換してダウンロード</b>」→「ファイルに保存」
+              共有シートが開いたら<b style="color:var(--green);">「"写真"に保存」または「ファイルに保存」</b>を選択してください
             </p>
           </div>
           <button class="rtbtn" id="vRtBtn">↩ やり直す</button>
@@ -444,9 +442,6 @@ function checkPw(){
           <canvas id="cSnapCanvas" class="preview-canvas hidden"></canvas>
           <button class="dlbtn" id="cMp4Btn" style="margin-top:0;font-size:15px;padding:16px;">🎬 動画をダウンロード（MP4）</button>
           <div class="stbox" id="cMp4Stbox"></div>
-          <button class="dlbtn" id="cVideoDlBtn" style="border-color:var(--text2);color:var(--text2);margin-top:8px;font-size:12px;">⬇ WebMでダウンロード（変換できない場合）</button>
-          <button class="dlbtn" id="cSnapBtn" style="border-color:var(--green);color:var(--green);margin-top:8px">📸 静止画として保存（PNG）</button>
-          <button class="dlbtn" id="cVideoNoFrameBtn" style="border-color:var(--text2);color:var(--text2);margin-top:8px;font-size:12px;">🎬 WebMでダウンロード（枠なし）</button>
           <button class="rtbtn" id="cRtBtn">↩ カメラに戻る</button>
           <button class="rtbtn" id="cTopBtn">⌂ TOPに戻る</button>
         </div>
@@ -546,6 +541,24 @@ function showToast(msg){
   t.textContent=msg;t.style.opacity='1';
   if(_toastTimer)clearTimeout(_toastTimer);
   _toastTimer=setTimeout(function(){t.style.opacity='0';},2800);
+}
+async function saveBlobWithShare(blob, filename, mime){
+  if(navigator.share && navigator.canShare){
+    try{
+      var file = new File([blob], filename, {type: mime});
+      if(navigator.canShare({files:[file]})){
+        await navigator.share({files:[file], title: filename});
+        showToast('✓ 保存しました');
+        return;
+      }
+    }catch(err){
+      if(err && err.name==='AbortError') return;
+    }
+  }
+  var url = URL.createObjectURL(blob);
+  triggerAnchorDownloadURL(url, filename);
+  setTimeout(function(){URL.revokeObjectURL(url);}, 1500);
+  showToast('✓ 保存しました');
 }
 
 // ===== 写真モード =====
@@ -854,12 +867,11 @@ document.getElementById('vRecBtn').onclick=function(){
   vMediaRec=new MediaRecorder(combined,{mimeType:mimeType,videoBitsPerSecond:8000000});
   vMediaRec.ondataavailable=function(e){if(e.data&&e.data.size>0)vRecChunks.push(e.data);};
   vMediaRec.onstop=function(){
-    var blob=new Blob(vRecChunks,{type:mimeType});var url=URL.createObjectURL(blob);hookVResultVideo(blob);
-    document.getElementById('vDlBtn').onclick=function(){var a=document.createElement('a');a.download='frame_video_'+Date.now()+'.webm';a.href=url;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);},1000);};
+    var blob=new Blob(vRecChunks,{type:mimeType});hookVResultVideo(blob);
     trackEvent('video');setSt('vRecStbox','合成完了！','done');
     document.getElementById('progWrap').classList.add('hidden');document.getElementById('vRecBtn').disabled=false;document.getElementById('vRecBtn').textContent='⏺ 録画して合成';
     var resSec=document.getElementById('vResSection');resSec.classList.remove('hidden');
-    if(isIOS){var vdl=document.getElementById('vDlBtn');if(vdl)vdl.style.display='none';var vhint=document.getElementById('vIosSaveHint');if(vhint)vhint.style.display='block';}
+    if(isIOS){var vhint=document.getElementById('vIosSaveHint');if(vhint)vhint.style.display='block';}
     window.scrollTo({top:resSec.offsetTop-10,behavior:'smooth'});
   };
   videoEl.currentTime=0;videoEl.loop=false;videoEl.play();vMediaRec.start(100);
@@ -976,13 +988,7 @@ document.getElementById('cRecBtn').onclick=function(){
   cMediaRec.ondataavailable=function(e){if(e.data&&e.data.size>0)cRecChunks.push(e.data);};
   cMediaRec.onstop=function(){
     var blob=new Blob(cRecChunks,{type:mimeType});cLastBlob=blob;
-    var webmUrl=URL.createObjectURL(blob);
-    document.getElementById('cVideoDlBtn').onclick=function(){var a=document.createElement('a');a.download='cam_frame_'+Date.now()+'.webm';a.href=webmUrl;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);},1000);};
     var snap=document.getElementById('cSnapCanvas');snap.width=cpc.width;snap.height=cpc.height;snap.getContext('2d').drawImage(cpc,0,0);
-    document.getElementById('cSnapBtn').onclick=function(){
-      if(isIOS){openImageForIOS(snap.toDataURL('image/png'));}
-      else{snap.toBlob(function(snapBlob){var snapUrl=URL.createObjectURL(snapBlob);var a=document.createElement('a');a.download='cam_frame_snap_'+Date.now()+'.png';a.href=snapUrl;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(snapUrl);},1000);},'image/png');}
-    };
     trackEvent('camera');setSt('cRecStbox','録画完了！','done');
     var resSec=document.getElementById('cResSection');resSec.classList.remove('hidden');
     addCamHistory(blob,snap.toDataURL('image/png'));
@@ -1035,9 +1041,8 @@ async function convertToMp4Server(blob,stboxId,filename){
     if(!res.ok){clearInterval(_progTimer);throw new Error('サーバーエラー '+res.status);}
     _progPhase='download';var mp4Blob=await res.blob();clearInterval(_progTimer);
     if(!mp4Blob||mp4Blob.size<1000)throw new Error('MP4データが不正です');
-    var url=URL.createObjectURL(mp4Blob);
-    if(isIOS){setSt(stboxId,'変換完了！','done');openVideoForIOS(url);}
-    else{var a=document.createElement('a');a.download=filename+'_'+Date.now()+'.mp4';a.href=url;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},1000);setSt(stboxId,'MP4変換完了！','done');}
+    await saveBlobWithShare(mp4Blob,filename+'_'+Date.now()+'.mp4','video/mp4');
+    setSt(stboxId,'MP4変換完了！','done');
   }catch(e){
     clearInterval(_progTimer);setSt(stboxId,'変換失敗（'+e.message+'）→ WebMでダウンロードします','err');
     if(blob){setTimeout(function(){var u=URL.createObjectURL(blob);var a=document.createElement('a');a.download=filename+'_'+Date.now()+'.webm';a.href=u;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},1000);},1500);}
@@ -1046,9 +1051,8 @@ async function convertToMp4Server(blob,stboxId,filename){
 document.getElementById('vMp4Btn').onclick=async function(){
   if(!vTrimBlob){setSt('vMp4Stbox','先に動画を合成してください','err');return;}
   if(vTrimBlob.type&&vTrimBlob.type.indexOf('mp4')!==-1){
-    var url=URL.createObjectURL(vTrimBlob);
-    if(isIOS){setSt('vMp4Stbox','完了！','done');openVideoForIOS(url);}
-    else{var a=document.createElement('a');a.download='frame_video_'+Date.now()+'.mp4';a.href=url;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},1000);setSt('vMp4Stbox','MP4でダウンロード完了！','done');}
+    await saveBlobWithShare(vTrimBlob,'frame_video_'+Date.now()+'.mp4','video/mp4');
+    setSt('vMp4Stbox','MP4で保存完了！','done');
     return;
   }
   await convertToMp4Server(vTrimBlob,'vMp4Stbox','frame_video');
@@ -1114,11 +1118,6 @@ document.getElementById('fIn').addEventListener('change',async function(e){var f
 document.getElementById('vfIn').addEventListener('change',async function(e){var f=e.target.files[0];if(!f)return;vfImg=await loadImg(f);markZone('vfArea','vn2',vfImg.src);checkVideoReady();document.getElementById('vSavePresetBtn').disabled=false;renderAllPresets();});
 window.addEventListener('load',function(){renderAllPresets();});
 
-document.getElementById('cVideoNoFrameBtn').onclick=function(){
-  if(!cNoFrameVideoUrl){alert('枠なし動画はまだ生成されていません。先に録画してください。');return;}
-  var a=document.createElement('a');a.download='cam_noframe_'+Date.now()+'.webm';a.href=cNoFrameVideoUrl;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);},1000);
-};
-
 // ===== 動画トリミング =====
 var vTrimBlob=null;
 function hookVResultVideo(blob){
@@ -1145,8 +1144,8 @@ async function trimWithServer(blob,start,end,stboxId){
   try{
     var formData=new FormData();formData.append('video',blob,'input.webm');formData.append('start',start);formData.append('end',end);
     var res=await fetch('https://kizan.jp/trim',{method:'POST',body:formData});if(!res.ok)throw new Error('サーバーエラー');
-    var mp4Blob=await res.blob();var url=URL.createObjectURL(mp4Blob);
-    var a=document.createElement('a');a.download='trimmed_'+Date.now()+'.mp4';a.href=url;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+    var mp4Blob=await res.blob();
+    await saveBlobWithShare(mp4Blob,'trimmed_'+Date.now()+'.mp4','video/mp4');
     trackEvent('trim');setSt(stboxId,'トリミング完了！','done');
   }catch(e){setSt(stboxId,'失敗：'+e.message,'err');}
 }
