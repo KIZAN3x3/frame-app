@@ -546,6 +546,19 @@ async function saveBlobWithShare(blob, filename, mime){
       if(err && err.name==='AbortError') return;
     }
   }
+  if(isIOS){
+    if(mime && mime.indexOf('video/')===0){
+      openVideoForIOS(URL.createObjectURL(blob));
+    }else{
+      var dataUrl=await new Promise(function(resolve){
+        var reader=new FileReader();
+        reader.onload=function(){resolve(reader.result);};
+        reader.readAsDataURL(blob);
+      });
+      openImageForIOS(dataUrl);
+    }
+    return;
+  }
   var url = URL.createObjectURL(blob);
   triggerAnchorDownloadURL(url, filename);
   setTimeout(function(){URL.revokeObjectURL(url);}, 1500);
