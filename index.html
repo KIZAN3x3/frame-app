@@ -451,6 +451,7 @@ function checkPw(){
 <script>
 // ===== iOS判定 =====
 var isIOS=(/iPad|iPhone|iPod/.test(navigator.userAgent)||('ontouchend' in document&&navigator.platform==='MacIntel'))&&!window.MSStream;
+var isMobileDevice = isIOS || /Android/i.test(navigator.userAgent);
 
 // ===== トラッキング =====
 function trackEvent(type){fetch('https://kizan.jp/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:type})}).catch(function(){});}
@@ -534,7 +535,7 @@ function showToast(msg){
   _toastTimer=setTimeout(function(){t.style.opacity='0';},2800);
 }
 async function saveBlobWithShare(blob, filename, mime){
-  if(navigator.share && navigator.canShare){
+  if(isMobileDevice && navigator.share && navigator.canShare){
     try{
       var file = new File([blob], filename, {type: mime});
       if(navigator.canShare({files:[file]})){
@@ -680,26 +681,9 @@ document.getElementById('topBtn').onclick=function(){
 document.getElementById('dlBtn').onclick=async function(){
   var rc=document.getElementById('resCanvas');
   var filename='frame_'+Date.now()+'.png';
-  if(navigator.share && navigator.canShare){
-    try{
-      var dataUrl=rc.toDataURL('image/png');
-      var file=await dataUrlToFile(dataUrl, filename, 'image/png');
-      if(navigator.canShare({files:[file]})){
-        await navigator.share({files:[file], title:filename});
-        showToast('✓ 保存しました');
-        return;
-      }
-    }catch(err){
-      if(err && err.name==='AbortError') return;
-    }
-  }
-  if(isIOS){openImageForIOS(rc.toDataURL('image/png'));return;}
-  rc.toBlob(function(blob){
-    var url=URL.createObjectURL(blob);
-    triggerAnchorDownloadURL(url, filename);
-    setTimeout(function(){URL.revokeObjectURL(url);},1500);
-    showToast('✓ 保存しました');
-  },'image/png');
+  rc.toBlob(async function(blob){
+    await saveBlobWithShare(blob, filename, 'image/png');
+  }, 'image/png');
 };
 
 // ===== 写真モード カメラ撮影 =====
