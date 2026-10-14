@@ -976,9 +976,9 @@ document.getElementById('cRecBtn').onclick=function(){
   cMediaRec.onstop=function(){
     var blob=new Blob(cRecChunks,{type:mimeType});cLastBlob=blob;
     var snap=document.getElementById('cSnapCanvas');snap.width=cpc.width;snap.height=cpc.height;snap.getContext('2d').drawImage(cpc,0,0);
-    trackEvent('camera');setSt('cRecStbox','録画完了！','done');
+    trackEvent('camera');setSt('cRecStbox','録画完了！ 下の録画一覧の「MP4に変換」から保存できます','done');
     var resSec=document.getElementById('cResSection');resSec.classList.remove('hidden');
-    persistAndRenderCamHistory(blob,snap.toDataURL('image/png'),mimeType,Date.now());
+    persistAndRenderCamHistory(blob,snap.toDataURL('image/png'),mimeType,Date.now(),cRecStartTime?(Date.now()-cRecStartTime)/1000:null);
     window.scrollTo({top:resSec.offsetTop-10,behavior:'smooth'});
   };
   var noFrameCanvas=document.createElement('canvas');noFrameCanvas.width=cpc.width;noFrameCanvas.height=cpc.height;
@@ -1008,32 +1008,63 @@ function showPresetToast(msg){
   t.textContent=msg;t.style.opacity='1';clearTimeout(t._tid);t._tid=setTimeout(function(){t.style.opacity='0';},1800);
 }
 
-// ===== MP4変換 =====
-var SERVER_URL='https://kizan.jp/convert',cLastBlob=null;
-async function convertToMp4Server(blob,stboxId,filename,autoSave){
+// ===== MP4変換（受付番号方式：受付→順番待ち→変換→受け取り） =====
+var SERVER_BASE='https://kizan.jp',cLastBlob=null;
+function serverErrMsg(status,code){
+  if(status===503||code==='busy')return '混雑しています。少し時間をおいてもう一度お試しください';
+  if(status===429)return '同じ場所からの変換が多すぎます。少し待ってからお試しください';
+  if(status===413||code==='too_large')return '動画が大きすぎます（上限300MB）';
+  if(code==='too_long')return '動画が長すぎます（上限5分）';
+  if(status===415||code==='unsupported')return 'この動画形式には対応していません';
+  if(code==='invalid_range')return 'トリミング範囲が正しくありません';
+  if(code==='timeout')return '変換に時間がかかりすぎたため中止しました';
+  return 'サーバーエラー（'+(code||status)+'）';
+}
+function _sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+// fields: {kind:'trim',start,end} または {duration}。onStatus(msg) に進み具合を渡す
+async function serverJob(blob,fields,onStatus){
+  var fd=new FormData();
+  Object.keys(fields||{}).forEach(function(k){fd.append(k,fields[k]);});
+  fd.append('video',blob,(blob.type&&blob.type.indexOf('mp4')!==-1)?'input.mp4':'input.webm');
+  onStatus('アップロード中…');
+  var res;
+  try{res=await fetch(SERVER_BASE+'/jobs',{method:'POST',body:fd});}
+  catch(e){throw new Error('通信できませんでした。電波の良い場所でお試しください');}
+  var job={};try{job=await res.json();}catch(e){}
+  if(!res.ok)throw new Error(serverErrMsg(res.status,job.error));
+  var netFails=0;
+  while(job.status!=='done'){
+    if(job.status==='error'||job.status==='cancelled')throw new Error(job.status==='cancelled'?'受付が取り消されました。もう一度お試しください':serverErrMsg(500,job.error));
+    if(job.status==='queued')onStatus('順番待ち：'+job.position+'番目');
+    else onStatus(job.progress!=null?'変換中… '+job.progress+'%':'変換中…');
+    await _sleep(job.status==='queued'?2000:1000);
+    var r;
+    try{r=await fetch(SERVER_BASE+'/jobs/'+job.id,{cache:'no-store'});}
+    catch(e){if(++netFails>=30)throw new Error('通信が途切れました。もう一度お試しください');continue;}
+    if(r.status===404)throw new Error('受付が取り消されました。もう一度お試しください');
+    try{job=await r.json();netFails=0;}catch(e){if(++netFails>=30)throw new Error('通信が途切れました');}
+  }
+  onStatus('受け取り中…');
+  var rr=await fetch(SERVER_BASE+'/jobs/'+job.id+'/result',{cache:'no-store'});
+  if(!rr.ok)throw new Error('結果を受け取れませんでした。もう一度お試しください');
+  var mp4=await rr.blob();
+  if(!mp4||mp4.size<1000)throw new Error('MP4データが不正です');
+  return new Blob([mp4],{type:'video/mp4'});
+}
+// opts: {duration:秒(進み具合表示用), onStatus:fn(msg), onError:fn(msg)}
+async function convertToMp4Server(blob,stboxId,filename,autoSave,opts){
+  opts=opts||{};
   if(autoSave===undefined)autoSave=true;
   if(!blob){if(stboxId)setSt(stboxId,'動画データがありません','err');return null;}
-  if(stboxId)setSt(stboxId,'アップロード中... 0%','loading');
-  var _progVal=0,_progPhase='upload';
-  var _progTimer=setInterval(function(){
-    if(!stboxId)return;
-    var el=document.getElementById(stboxId);if(!el)return;
-    var sp=el.querySelector('span:last-child');if(!sp)return;
-    if(_progPhase==='upload'){_progVal=Math.min(_progVal+8,30);sp.textContent='アップロード中... '+_progVal+'%';}
-    else if(_progPhase==='convert'){_progVal=Math.min(_progVal+2,85);sp.textContent='変換中... '+_progVal+'%';}
-    else{_progVal=Math.min(_progVal+10,99);sp.textContent='受信中... '+_progVal+'%';}
-  },300);
+  var show=function(msg){if(stboxId)setSt(stboxId,msg+'（画面を開いたままお待ちください）','loading');if(opts.onStatus)opts.onStatus(msg);};
   try{
-    var formData=new FormData();formData.append('video',blob,'input.webm');_progPhase='upload';
-    var res=await fetch(SERVER_URL,{method:'POST',body:formData});_progPhase='convert';
-    if(!res.ok){clearInterval(_progTimer);throw new Error('サーバーエラー '+res.status);}
-    _progPhase='download';var mp4Blob=await res.blob();clearInterval(_progTimer);
-    if(!mp4Blob||mp4Blob.size<1000)throw new Error('MP4データが不正です');
+    var fields={};if(opts.duration>0&&isFinite(opts.duration))fields.duration=Math.round(opts.duration*10)/10;
+    var mp4Blob=await serverJob(blob,fields,show);
     if(autoSave)await saveBlobWithShare(mp4Blob,filename+'_'+Date.now()+'.mp4','video/mp4');
     if(stboxId)setSt(stboxId,'MP4変換完了！','done');
     return mp4Blob;
   }catch(e){
-    clearInterval(_progTimer);
+    if(opts.onError)opts.onError(e.message);
     if(stboxId)setSt(stboxId,autoSave?('変換失敗（'+e.message+'）→ WebMでダウンロードします'):('変換失敗（'+e.message+'）'),'err');
     if(blob&&autoSave){setTimeout(function(){var u=URL.createObjectURL(blob);var a=document.createElement('a');a.download=filename+'_'+Date.now()+'.webm';a.href=u;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},1000);},1500);}
     return null;
@@ -1049,7 +1080,7 @@ async function startVMp4Save(){
     return;
   }
   btn.disabled=true;btn.textContent='変換中…';
-  var mp4Blob=await convertToMp4Server(vTrimBlob,'vMp4Stbox','frame_video',false);
+  var mp4Blob=await convertToMp4Server(vTrimBlob,'vMp4Stbox','frame_video',false,{duration:vTrimDur});
   btn.disabled=false;
   if(mp4Blob){
     btn.textContent='✓ 保存する';
@@ -1074,11 +1105,11 @@ function openCamDB(){
     req.onerror=function(){reject(req.error);};
   });
 }
-async function camDBAdd(blob,thumb,mimeType,ts){
+async function camDBAdd(blob,thumb,mimeType,ts,dur){
   var db=await openCamDB();
   return new Promise(function(resolve,reject){
     var tx=db.transaction(CAM_DB_STORE,'readwrite');
-    var req=tx.objectStore(CAM_DB_STORE).add({blob:blob,thumb:thumb,mimeType:mimeType,ts:ts});
+    var req=tx.objectStore(CAM_DB_STORE).add({blob:blob,thumb:thumb,mimeType:mimeType,ts:ts,dur:dur});
     req.onsuccess=function(){resolve(req.result);};
     req.onerror=function(){reject(req.error);};
   });
@@ -1104,56 +1135,50 @@ async function camDBDelete(id){
 
 // ===== 録画一覧 =====
 var camHistoryCount=0;
-function armCamDownloadBtn(dlBtn,blob,mp4Blob){
-  dlBtn.disabled=false;
-  if(mp4Blob){
-    dlBtn.textContent='⬇ ダウンロード';
-    dlBtn.onclick=function(){saveBlobWithShare(mp4Blob,'cam_frame_'+Date.now()+'.mp4','video/mp4');};
-  }else{
-    dlBtn.textContent='⬇ ダウンロード（WebM）';
-    dlBtn.onclick=function(){saveBlobWithShare(blob,'cam_frame_'+Date.now()+'.webm','video/webm');};
-  }
-}
-function wireCamDownloadOnClick(dlBtn,blob){
+// 変換は「MP4に変換」を押したときだけ行う（撮り直し分までサーバーで変換しないため）
+// 変換後は「保存する」をもう一度押して保存（iOSは変換待ちの後だと共有シートを開けないため2段階）
+function wireCamDownloadOnClick(dlBtn,blob,dur){
+  var mp4Blob=null;
+  dlBtn.disabled=false;dlBtn.textContent='🎬 MP4に変換';
   dlBtn.onclick=async function(){
-    dlBtn.disabled=true;dlBtn.textContent='変換中…';
-    var mp4Blob=await convertToMp4Server(blob,null,'cam_frame',false);
-    armCamDownloadBtn(dlBtn,blob,mp4Blob);
-    if(mp4Blob)await saveBlobWithShare(mp4Blob,'cam_frame_'+Date.now()+'.mp4','video/mp4');
-    else await saveBlobWithShare(blob,'cam_frame_'+Date.now()+'.webm','video/webm');
+    if(mp4Blob){await saveBlobWithShare(mp4Blob,'cam_frame_'+Date.now()+'.mp4','video/mp4');return;}
+    dlBtn.disabled=true;
+    mp4Blob=await convertToMp4Server(blob,null,'cam_frame',false,{
+      duration:dur,
+      onStatus:function(m){dlBtn.textContent=m;},
+      onError:function(m){showToast('✗ '+m);}
+    });
+    dlBtn.disabled=false;
+    dlBtn.textContent=mp4Blob?'⬇ 保存する':'🎬 もう一度変換';
   };
 }
-function addCamHistory(dbId,blob,thumbDataUrl,ts,pending){
+function addCamHistory(dbId,blob,thumbDataUrl,ts,dur){
   camHistoryCount++;var num=camHistoryCount;
   document.getElementById('cHistorySection').style.display='block';var list=document.getElementById('cHistoryList');
   var item=document.createElement('div');item.style.cssText='display:flex;align-items:center;gap:10px;padding:8px;background:var(--surface2);border-radius:var(--rs);';
   var thumb=document.createElement('img');thumb.src=thumbDataUrl;thumb.style.cssText='width:56px;height:56px;object-fit:cover;border-radius:6px;flex-shrink:0;';
   var info=document.createElement('div');info.style.cssText='flex:1;min-width:0;';info.innerHTML='<div style="font-size:12px;font-weight:600;">録画 '+num+'</div><div style="font-size:11px;color:var(--text2);">'+(new Date(ts||Date.now()).toLocaleTimeString())+'</div>';
-  var dlBtn=document.createElement('button');dlBtn.className='abtn pri';dlBtn.style.cssText='padding:8px 12px;font-size:12px;flex-shrink:0;';
-  var delBtn=document.createElement('button');delBtn.className='abtn';delBtn.style.cssText='padding:8px 10px;font-size:12px;flex-shrink:0;color:var(--red);border-color:var(--red);';delBtn.textContent='🗑 削除';
+  var dlBtn=document.createElement('button');dlBtn.className='abtn pri';dlBtn.style.cssText='padding:8px 12px;font-size:12px;flex-shrink:0;white-space:nowrap;';
+  var delBtn=document.createElement('button');delBtn.className='abtn';delBtn.style.cssText='padding:8px 10px;font-size:12px;flex-shrink:0;white-space:nowrap;color:var(--red);border-color:var(--red);';delBtn.textContent='🗑 削除';
   delBtn.onclick=function(){
     if(!confirm('この録画を削除しますか？'))return;
     if(dbId!=null)camDBDelete(dbId).catch(function(){});
     item.remove();
   };
-  if(pending){dlBtn.textContent='変換中…';dlBtn.disabled=true;}
-  else{dlBtn.textContent='⬇ ダウンロード';wireCamDownloadOnClick(dlBtn,blob);}
+  wireCamDownloadOnClick(dlBtn,blob,dur);
   item.appendChild(thumb);item.appendChild(info);item.appendChild(dlBtn);item.appendChild(delBtn);list.insertBefore(item,list.firstChild);
   return dlBtn;
 }
-async function persistAndRenderCamHistory(blob,thumbDataUrl,mimeType,ts){
+async function persistAndRenderCamHistory(blob,thumbDataUrl,mimeType,ts,dur){
   var dbId=null;
-  try{dbId=await camDBAdd(blob,thumbDataUrl,mimeType,ts);}catch(e){}
-  var histBtn=addCamHistory(dbId,blob,thumbDataUrl,ts,true);
-  convertToMp4Server(blob,null,'cam_frame',false).then(function(mp4Blob){
-    armCamDownloadBtn(histBtn,blob,mp4Blob);
-  });
+  try{dbId=await camDBAdd(blob,thumbDataUrl,mimeType,ts,dur);}catch(e){}
+  addCamHistory(dbId,blob,thumbDataUrl,ts,dur);
 }
 async function restoreCamHistory(){
   var records;
   try{records=await camDBGetAll();}catch(e){return;}
   records.sort(function(a,b){return a.ts-b.ts;});
-  records.forEach(function(rec){addCamHistory(rec.id,rec.blob,rec.thumb,rec.ts,false);});
+  records.forEach(function(rec){addCamHistory(rec.id,rec.blob,rec.thumb,rec.ts,rec.dur);});
 }
 
 function playBeep(freq,dur,vol){try{var ac2=new (window.AudioContext||window.webkitAudioContext)();var osc=ac2.createOscillator();var gain=ac2.createGain();osc.connect(gain);gain.connect(ac2.destination);osc.frequency.value=freq||880;gain.gain.setValueAtTime(vol||0.3,ac2.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,ac2.currentTime+(dur||0.15));osc.start();osc.stop(ac2.currentTime+(dur||0.15));}catch(e){}}
@@ -1226,11 +1251,8 @@ function initVTrimSliders(dur){
 async function trimWithServer(blob,start,end,stboxId){
   if(!blob){setSt(stboxId,'動画がありません','err');return null;}
   if(end<=start){setSt(stboxId,'終了点を開始点より後にしてください','err');return null;}
-  setSt(stboxId,'サーバーに送信中...','loading');
   try{
-    var formData=new FormData();formData.append('video',blob,'input.webm');formData.append('start',start);formData.append('end',end);
-    var res=await fetch('https://kizan.jp/trim',{method:'POST',body:formData});if(!res.ok)throw new Error('サーバーエラー');
-    var mp4Blob=await res.blob();
+    var mp4Blob=await serverJob(blob,{kind:'trim',start:start,end:end},function(msg){setSt(stboxId,msg+'（画面を開いたままお待ちください）','loading');});
     trackEvent('trim');setSt(stboxId,'トリミング完了！','done');
     return mp4Blob;
   }catch(e){setSt(stboxId,'失敗：'+e.message,'err');return null;}

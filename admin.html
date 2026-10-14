@@ -45,6 +45,14 @@ button{width:100%;padding:13px;background:var(--accent);border:none;border-radiu
       <div class="row"><span class="label">📹 カメラモード</span><span class="val" id="s-camera">-</span></div>
       <div class="row"><span class="label">✂️ トリミング</span><span class="val" id="s-trim">-</span></div>
     </div>
+    <div class="card">
+      <h2>🎬 変換サーバー</h2>
+      <div class="row"><span class="label">変換成功</span><span class="val" id="s-conversions">-</span></div>
+      <div class="row"><span class="label">変換失敗</span><span class="val" id="s-failures">-</span></div>
+      <div class="row"><span class="label">いま変換中 / 順番待ち</span><span class="val" id="s-now">-</span></div>
+      <div class="row"><span class="label">最大の混雑（同時受付数）</span><span class="val" id="s-peak">-</span></div>
+      <div class="row"><span class="label">混雑で断った数</span><span class="val" id="s-busy">-</span></div>
+    </div>
     <button class="reload" onclick="loadStats()">🔄 更新</button>
   </div>
 </div>
@@ -59,9 +67,11 @@ document.getElementById('passInput').addEventListener('keydown',function(e){
   if(e.key==='Enter') login();
 });
 function loadStats(){
-  fetch('https://kizan.jp/admin-stats?pass='+encodeURIComponent(pass))
+  // パスワードはURLではなくヘッダーで送る（サーバーのログや履歴に残さないため）
+  fetch('https://kizan.jp/admin-stats',{headers:{'X-Admin-Pass':pass},cache:'no-store'})
     .then(function(r){
-      if(r.status===401) throw new Error('unauthorized');
+      if(r.status===429){document.getElementById('errMsg').textContent='間違いが続いたため15分ロック中です';throw new Error('locked');}
+      if(!r.ok){document.getElementById('errMsg').textContent='パスワードが違います';throw new Error('unauthorized');}
       return r.json();
     })
     .then(function(data){
@@ -72,6 +82,11 @@ function loadStats(){
       document.getElementById('s-video').textContent=data.video||0;
       document.getElementById('s-camera').textContent=data.camera||0;
       document.getElementById('s-trim').textContent=data.trim||0;
+      document.getElementById('s-conversions').textContent=data.conversions||0;
+      document.getElementById('s-failures').textContent=data.failures||0;
+      document.getElementById('s-now').textContent=(data.processingNow||0)+' / '+(data.queueNow||0);
+      document.getElementById('s-peak').textContent=data.peakQueue||0;
+      document.getElementById('s-busy').textContent=data.rejectedBusy||0;
     })
     .catch(function(){
       document.getElementById('errMsg').style.display='block';
